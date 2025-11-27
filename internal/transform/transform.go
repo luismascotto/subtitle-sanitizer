@@ -25,8 +25,8 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 
 		for _, line := range cue.Lines {
 			text := line
-			if conf.RemoveUppercaseWords {
-				text = removeUppercaseWords(text)
+			if conf.RemoveUppercaseColonWords {
+				text = removeUppercaseColonWords(text)
 			}
 			text = normalizeSpaces(text)
 			if lineHasAlphabetic(text) {
@@ -51,10 +51,10 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 	return out
 }
 
-func removeUppercaseWords(s string) string {
+func removeUppercaseColonWords(s string) string {
 	// Remove words of 2+ uppercase letters.
 	// Use word boundaries to avoid partial matches. Keep punctuation spacing tidy later.
-	re := regexp.MustCompile(`\b[A-Z]{2,}\b`)
+	re := regexp.MustCompile(`\b[A-Z]{2,}\:\b`)
 	return re.ReplaceAllString(s, "")
 }
 
@@ -63,7 +63,7 @@ func normalizeSpaces(s string) string {
 	// Strategy: split preserving <br /> tokens.
 	const br = "<br />"
 	if !strings.Contains(s, br) {
-		return collapseSpaces(strings.TrimSpace(s))
+		return strings.TrimSpace(collapseSpaces(s))
 	}
 	parts := strings.Split(s, br)
 	for i := range parts {

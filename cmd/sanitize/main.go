@@ -71,7 +71,7 @@ func main() {
 
 	conf := rules.LoadDefaultOrEmpty()
 	// Current default built-in: remove uppercase words (2+ chars)
-	conf.RemoveUppercaseWords = true
+	conf.RemoveUppercaseColonWords = true
 
 	result := transform.ApplyAll(*doc, conf)
 
