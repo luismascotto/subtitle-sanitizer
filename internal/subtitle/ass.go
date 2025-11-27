@@ -80,7 +80,7 @@ func parseASSEventsBlock(blk []string) ([]*model.Cue, error) {
 	// First line is [Events]
 	_, _ = strconv.Atoi(strings.TrimSpace(blk[0])) // ignore parsing errors; some files omit or duplicate
 	dialoguesStartIndex := 1
-	for dialoguesStartIndex < len(blk) && strings.TrimSpace(blk[dialoguesStartIndex]) != "Dialogue:" {
+	for dialoguesStartIndex < len(blk) && !strings.Contains(blk[dialoguesStartIndex], "Dialogue:") {
 		dialoguesStartIndex++
 	}
 	if dialoguesStartIndex >= len(blk) {
@@ -99,11 +99,11 @@ func parseASSEventsBlock(blk []string) ([]*model.Cue, error) {
 			return nil, fmt.Errorf("invalid dialogue line: %s", dialogue)
 		}
 		// Parse timing
-		start, err := parseASSTiming(parts[assDialogueLineStartIndex])
+		start, err := parseASSTime(parts[assDialogueLineStartIndex])
 		if err != nil {
 			return nil, fmt.Errorf("parse start timing: %w", err)
 		}
-		end, err := parseASSTiming(parts[assDialogueLineEndIndex])
+		end, err := parseASSTime(parts[assDialogueLineEndIndex])
 		if err != nil {
 			return nil, fmt.Errorf("parse timing: %w", err)
 		}
@@ -118,27 +118,35 @@ func parseASSEventsBlock(blk []string) ([]*model.Cue, error) {
 	return cues, nil
 }
 
-func parseASSTiming(s string) (time.Duration, error) {
-	// Example: 0:00:04.87
-	parts := strings.Split(s, ":")
-	if len(parts) != 3 {
-		return 0, errors.New("invalid timing")
+func parseASSTime(s string) (time.Duration, error) {
+	// HH:MM:SS,mmm
+	hmsMillis := strings.Split(s, ".")
+	if len(hmsMillis) != 2 {
+		return 0, errors.New("missing millis")
 	}
-	hours, err := strconv.Atoi(parts[0])
+	hms := strings.Split(hmsMillis[0], ":")
+	if len(hms) != 3 {
+		return 0, errors.New("invalid h:m:s")
+	}
+	h, err := strconv.Atoi(hms[0])
 	if err != nil {
-		return 0, fmt.Errorf("parse hours: %w", err)
+		return 0, err
 	}
-	minutes, err := strconv.Atoi(parts[1])
+	m, err := strconv.Atoi(hms[1])
 	if err != nil {
-		return 0, fmt.Errorf("parse minutes: %w", err)
+		return 0, err
 	}
-	seconds, err := strconv.Atoi(parts[2])
+	si, err := strconv.Atoi(hms[2])
 	if err != nil {
-		return 0, fmt.Errorf("parse seconds: %w", err)
+		return 0, err
 	}
-	milliseconds, err := strconv.Atoi(parts[3])
+	ms, err := strconv.Atoi(hmsMillis[1])
 	if err != nil {
-		return 0, fmt.Errorf("parse milliseconds: %w", err)
+		return 0, err
 	}
-	return time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute + time.Duration(seconds)*time.Second + time.Duration(milliseconds)*time.Millisecond, nil
+	total := time.Duration(h)*time.Hour +
+		time.Duration(m)*time.Minute +
+		time.Duration(si)*time.Second +
+		time.Duration(ms)*time.Millisecond
+	return total, nil
 }
