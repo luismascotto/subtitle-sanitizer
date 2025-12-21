@@ -1,13 +1,19 @@
 package transform
 
 import (
+	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 	"unicode"
 
 	"github.com/yourname/subtitle-sanitizer/internal/model"
 	"github.com/yourname/subtitle-sanitizer/internal/rules"
+)
+
+var (
+	// reBr                  = regexp.MustCompile(`<br />`)
+	reSpaces              = regexp.MustCompile(`\s{2,}`)
+	reUppercaseColonWords = regexp.MustCompile(`\b[A-Z]{2,}\:\b`)
 )
 
 // ApplyAll runs all enabled transformations based on rules.
@@ -28,21 +34,53 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 			if conf.RemoveUppercaseColonWords {
 				text = removeUppercaseColonWords(text)
 			}
-			text = normalizeSpaces(text)
-			if lineHasAlphabetic(text) {
-				newCue.Lines = append(newCue.Lines, text)
+
+			if text != "" && conf.RemoveLineIfContains != "" && strings.Contains(text, conf.RemoveLineIfContains) {
+				text = ""
+			}
+
+			if text != "" && len(conf.RemoveBetweenDelimiters) > 0 {
+				for _, delimiter := range conf.RemoveBetweenDelimiters {
+					// Quote delimiter literals to avoid regex meta interpretation.
+					left := regexp.QuoteMeta(delimiter.Left)
+					right := regexp.QuoteMeta(delimiter.Right)
+					// Use a negated character class against the right delimiter (assumed single rune)
+					// to avoid greedy cross-boundary removal; replace all occurrences.
+					re, err := regexp.Compile(fmt.Sprintf(`%s[^%s]*%s`, left, right, right))
+					if err != nil {
+						fmt.Println("Error compiling regex:", err, "for delimiter:", delimiter)
+						continue
+					}
+					if re.MatchString(text) {
+						text = strings.TrimSpace(re.ReplaceAllString(text, ""))
+						if text == "" {
+							// Avoid other rules from applying to the empty text
+							break
+						}
+					}
+				}
+			}
+
+			if text != "" {
+				text = normalizeSpaces(text)
+				if lineHasAlphabetic(text) {
+					newCue.Lines = append(newCue.Lines, text)
+				}
 			}
 		}
 
-		// If the cue ends up with no alphabetic content, drop it
-		if len(newCue.Lines) == 0 {
-			continue
-		}
+		// Add newCue to out.Cues (even with no text) for comparison
+		// before accept final result. Empty cues will be dropped on writing to file.
 
-		// Additionally ensure at least one line has a letter (defensive)
-		if !slices.ContainsFunc(newCue.Lines, lineHasAlphabetic) {
-			continue
-		}
+		// // If the cue ends up with no alphabetic content, drop it
+		// if len(newCue.Lines) == 0 {
+		// 	continue
+		// }
+
+		// // Additionally ensure at least one line has a letter (defensive)
+		// if !slices.ContainsFunc(newCue.Lines, lineHasAlphabetic) {
+		// 	continue
+		// }
 
 		out.Cues = append(out.Cues, newCue)
 	}
@@ -54,8 +92,10 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 func removeUppercaseColonWords(s string) string {
 	// Remove words of 2+ uppercase letters.
 	// Use word boundaries to avoid partial matches. Keep punctuation spacing tidy later.
-	re := regexp.MustCompile(`\b[A-Z]{2,}\:\b`)
-	return re.ReplaceAllString(s, "")
+	if reUppercaseColonWords.MatchString(s) {
+		return reUppercaseColonWords.ReplaceAllString(s, "")
+	}
+	return s
 }
 
 func normalizeSpaces(s string) string {
@@ -74,8 +114,7 @@ func normalizeSpaces(s string) string {
 }
 
 func collapseSpaces(s string) string {
-	re := regexp.MustCompile(`\s{2,}`)
-	return re.ReplaceAllString(s, " ")
+	return reSpaces.ReplaceAllString(s, " ")
 }
 
 func lineHasAlphabetic(s string) bool {

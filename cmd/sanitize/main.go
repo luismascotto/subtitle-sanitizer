@@ -5,8 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/yourname/subtitle-sanitizer/internal/model"
@@ -72,6 +74,13 @@ func main() {
 	conf := rules.LoadDefaultOrEmpty()
 	// Current default built-in: remove uppercase words (2+ chars)
 	conf.RemoveUppercaseColonWords = true
+	conf.RemoveBetweenDelimiters = []rules.Delimiter{
+		{Left: "(", Right: ")"},
+		{Left: "[", Right: "]"},
+		{Left: "{", Right: "}"},
+		{Left: "?", Right: "?"},
+	}
+	conf.RemoveLineIfContains = "* *"
 
 	result := transform.ApplyAll(*doc, conf)
 
@@ -111,7 +120,12 @@ func deriveOutputPath(inputPath string) string {
 	dir := filepath.Dir(inputPath)
 	base := filepath.Base(inputPath)
 	name := strings.TrimSuffix(base, filepath.Ext(base))
-	return filepath.Join(dir, name+"-his.srt")
+	newName := filepath.Join(dir, name+"-his.srt")
+	if _, err := os.Stat(newName); err == nil && !os.IsNotExist(err) {
+		// Happy path
+		return newName
+	}
+	return filepath.Join(dir, name+"-his_"+strconv.FormatInt(int64(rand.Intn(1000)), 16)+".srt")
 }
 
 func exitWithErr(err error) {
