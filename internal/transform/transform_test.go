@@ -36,7 +36,42 @@ func Test_removeUppercaseColonWords(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := removeUppercaseColonWords(tt.s)
+			_, got := removeUppercaseColonWords(tt.s)
+
+			if !strings.Contains(got, tt.want) {
+				t.Errorf("removeUppercaseColonWords() = [%v], want [%v]", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_removeSingleLineColon(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		s    string
+		want string
+	}{
+		{
+			name: "no colon words single line",
+			s:    "Hello World",
+			want: "Hello World",
+		},
+		{
+			name: "remove  single line with colon",
+			s:    "That woman said:",
+			want: "",
+		},
+		{
+			name: "line with colon but have more than 3 words",
+			s:    "This is a special release:",
+			want: "This is a special release:",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, got := removeUppercaseColonWords(tt.s)
+
 			if !strings.Contains(got, tt.want) {
 				t.Errorf("removeUppercaseColonWords() = [%v], want [%v]", got, tt.want)
 			}

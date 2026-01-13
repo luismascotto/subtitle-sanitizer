@@ -12,8 +12,9 @@ import (
 
 var (
 	// reBr                  = regexp.MustCompile(`<br />`)
-	reSpaces              = regexp.MustCompile(`\s{2,}`)
-	reUppercaseColonWords = regexp.MustCompile(`\b[A-Z]{2,}\:\b`)
+	reSpaces               = regexp.MustCompile(`\s{2,}`)
+	reUppercaseColonWords  = regexp.MustCompile(`\b[A-Z]{2,}\:\b`)
+	reColonWordsSingleLine = regexp.MustCompile(`(?i)\b[A-Z]{2,}\:\b(?:[A-Za-z]+\s+){0,2}$`)
 )
 
 // ApplyAll runs all enabled transformations based on rules.
@@ -21,6 +22,8 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 	out := model.Document{
 		Cues: []*model.Cue{},
 	}
+	rulesApplied := []string{}
+	ruleTriggered := false
 
 	for _, cue := range doc.Cues {
 		newCue := &model.Cue{
@@ -32,10 +35,22 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 		for _, line := range cue.Lines {
 			text := line
 			if conf.RemoveUppercaseColonWords {
-				text = removeUppercaseColonWords(text)
+				ruleTriggered, text = removeUppercaseColonWords(text)
+				if ruleTriggered {
+					rulesApplied = append(rulesApplied, "removeUppercaseColonWords")
+				}
+			}
+
+			if conf.RemoveSingleLineColon {
+				ruleTriggered, text = removeSingleLineColon(text)
+				if ruleTriggered {
+					rulesApplied = append(rulesApplied, "removeSingleLineColon")
+				}
 			}
 
 			if text != "" && conf.RemoveLineIfContains != "" && strings.Contains(text, conf.RemoveLineIfContains) {
+				ruleTriggered = true
+				rulesApplied = append(rulesApplied, "removeLineIfContains")
 				text = ""
 			}
 
@@ -52,6 +67,8 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 						continue
 					}
 					if re.MatchString(text) {
+						ruleTriggered = true
+						rulesApplied = append(rulesApplied, "removeBetweenDelimiters"+delimiter.Left+delimiter.Right)
 						text = strings.TrimSpace(re.ReplaceAllString(text, ""))
 						if text == "" {
 							// Avoid other rules from applying to the empty text
@@ -89,13 +106,22 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 	return out
 }
 
-func removeUppercaseColonWords(s string) string {
+func removeUppercaseColonWords(s string) (bool, string) {
 	// Remove words of 2+ uppercase letters.
 	// Use word boundaries to avoid partial matches. Keep punctuation spacing tidy later.
 	if reUppercaseColonWords.MatchString(s) {
-		return reUppercaseColonWords.ReplaceAllString(s, "")
+		return true, reUppercaseColonWords.ReplaceAllString(s, "")
 	}
-	return s
+	return false, s
+}
+
+func removeSingleLineColon(s string) (bool, string) {
+	// Remove line if ends with a colon, with 3 words os less, case insensitive
+	// Use word boundaries to avoid partial matches. Keep punctuation spacing tidy later.
+	if reColonWordsSingleLine.MatchString(s) {
+		return true, reColonWordsSingleLine.ReplaceAllString(s, "")
+	}
+	return false, s
 }
 
 func normalizeSpaces(s string) string {
