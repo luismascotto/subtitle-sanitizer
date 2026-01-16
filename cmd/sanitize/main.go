@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -81,6 +82,14 @@ func main() {
 		{Left: "?", Right: "?"},
 	}
 	conf.RemoveLineIfContains = "* *"
+
+	if verbose {
+		json, err := json.Marshal(conf)
+		if err != nil {
+			exitWithErr(fmt.Errorf("marshal rules: %w", err))
+		}
+		fmt.Println("Rules:", string(json))
+	}
 
 	result := transform.ApplyAll(*doc, conf)
 

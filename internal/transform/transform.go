@@ -71,7 +71,7 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 						rulesApplied = append(rulesApplied, "removeBetweenDelimiters"+delimiter.Left+delimiter.Right)
 						text = strings.TrimSpace(re.ReplaceAllString(text, ""))
 						if text == "" {
-							// Avoid other rules from applying to the empty text
+							// Skip unnecessary processing
 							break
 						}
 					}
