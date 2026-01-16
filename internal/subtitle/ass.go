@@ -119,7 +119,8 @@ func parseASSEventsBlock(blk []string) ([]*model.Cue, error) {
 }
 
 func parseASSTime(s string) (time.Duration, error) {
-	// HH:MM:SS,mmm
+	// h:mm:ss.cs (ASS/SSA uses centiseconds after '.')
+	s = strings.TrimSpace(s)
 	hmsMillis := strings.Split(s, ".")
 	if len(hmsMillis) != 2 {
 		return 0, errors.New("missing millis")
@@ -140,10 +141,32 @@ func parseASSTime(s string) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
-	ms, err := strconv.Atoi(hmsMillis[1])
+	frac := strings.TrimSpace(hmsMillis[1])
+	// ASS typically uses centiseconds (2 digits). Handle robustly:
+	// - 1 digit: tenths (x100 ms)
+	// - 2 digits: centiseconds (x10 ms)
+	// - 3 digits: milliseconds
+	// - >3 digits: take first 3 as milliseconds (ignore extras)
+	if len(frac) > 3 {
+		frac = frac[:3]
+	}
+	msMultiplier := 1
+	switch len(frac) {
+	case 1:
+		msMultiplier = 100
+	case 2:
+		msMultiplier = 10
+	case 3:
+		msMultiplier = 1
+	default:
+		// No digits? Treat as 0ms
+		frac = "0"
+	}
+	msVal, err := strconv.Atoi(frac)
 	if err != nil {
 		return 0, err
 	}
+	ms := msVal * msMultiplier
 	total := time.Duration(h)*time.Hour +
 		time.Duration(m)*time.Minute +
 		time.Duration(si)*time.Second +
