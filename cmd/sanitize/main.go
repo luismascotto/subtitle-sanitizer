@@ -80,6 +80,12 @@ func main() {
 		{Left: "[", Right: "]"},
 		{Left: "{", Right: "}"},
 		{Left: "?", Right: "?"},
+		{Left: "!", Right: "!"},
+		{Left: "¶", Right: "¶"},
+		{Left: "♪", Right: "♪"},
+		{Left: "♫", Right: "♫"},
+		{Left: "♬", Right: "♬"},
+		{Left: "♭", Right: "♭"},
 	}
 	conf.RemoveLineIfContains = "* *"
 
@@ -128,13 +134,13 @@ func validateInputPath(p string) error {
 func deriveOutputPath(inputPath string) string {
 	dir := filepath.Dir(inputPath)
 	base := filepath.Base(inputPath)
-	name := strings.TrimSuffix(base, filepath.Ext(base))
-	newName := filepath.Join(dir, name+"-his.srt")
-	if _, err := os.Stat(newName); err == nil && !os.IsNotExist(err) {
+	//name := strings.TrimSuffix(base, filepath.Ext(base))
+	newName := filepath.Join(dir, base+"-his.srt")
+	if _, err := os.Stat(newName); err != nil && os.IsNotExist(err) {
 		// Happy path
 		return newName
 	}
-	return filepath.Join(dir, name+"-his_"+strconv.FormatInt(int64(rand.Intn(1000)), 16)+".srt")
+	return filepath.Join(dir, base+"-his_"+strconv.FormatInt(int64(rand.Intn(1000)), 16)+".srt")
 }
 
 func exitWithErr(err error) {
