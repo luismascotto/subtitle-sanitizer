@@ -148,24 +148,32 @@ func formatSRTTime(d time.Duration) string {
 // FormatSRT renders a document to SRT and renumbers cues from 1..N.
 func FormatSRT(doc model.Document) []byte {
 	var buf bytes.Buffer
-	for i, cue := range doc.Cues {
-		if i > 0 {
+	index := 1
+	for _, cue := range doc.Cues {
+		hasText := false
+		for _, line := range cue.Lines {
+			if strings.TrimSpace(line) != "" {
+				hasText = true
+				break
+			}
+		}
+		if !hasText {
+			continue
+		}
+		if index > 1 {
 			buf.WriteString("\n")
 		}
-		index := i + 1
 		buf.WriteString(strconv.Itoa(index))
 		buf.WriteString("\n")
 		buf.WriteString(formatSRTTime(cue.Start))
 		buf.WriteString(" --> ")
 		buf.WriteString(formatSRTTime(cue.End))
-		buf.WriteString("\n")
-		for i, line := range cue.Lines {
+		for _, line := range cue.Lines {
+			buf.WriteString("\n")
 			buf.WriteString(line)
-			if i < len(cue.Lines)-1 {
-				buf.WriteString("\n")
-			}
 		}
 		buf.WriteString("\n")
+		index++
 	}
 	return buf.Bytes()
 }
