@@ -22,11 +22,13 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 	out := model.Document{
 		Cues: []*model.Cue{},
 	}
-	rulesApplied := []string{}
-	ruleTriggered := false
 
 	for _, cue := range doc.Cues {
+		rulesApplied := []string{}
+		ruleTriggered := false
+
 		newCue := &model.Cue{
+			Index: cue.Index,
 			Start: cue.Start,
 			End:   cue.End,
 			Lines: make([]string, 0),
@@ -86,18 +88,10 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 			}
 		}
 
-		// Add newCue to out.Cues (even with no text) for comparison
-		// before accept final result. Empty cues will be dropped on writing to file.
-
-		// // If the cue ends up with no alphabetic content, drop it
-		// if len(newCue.Lines) == 0 {
-		// 	continue
-		// }
-
-		// // Additionally ensure at least one line has a letter (defensive)
-		// if !slices.ContainsFunc(newCue.Lines, lineHasAlphabetic) {
-		// 	continue
-		// }
+		if len(rulesApplied) > 0 {
+			//Print cue index, original text and transformed text
+			fmt.Printf("Cue %d: %v -> %v (rules applied: %v)\n", cue.Index, cue.Lines, newCue.Lines, rulesApplied)
+		}
 
 		out.Cues = append(out.Cues, newCue)
 	}
