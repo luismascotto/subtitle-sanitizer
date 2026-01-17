@@ -55,6 +55,7 @@ func main() {
 
 	ext := strings.ToLower(filepath.Ext(inputPath))
 	var doc *model.Document
+	var fromASS bool
 	switch ext {
 	case ".srt":
 		d, perr := subtitle.ParseSRT(data, ignoreErrors)
@@ -63,6 +64,7 @@ func main() {
 		}
 		doc = d
 	case ".ass":
+		fromASS = true
 		d, perr := subtitle.ParseASS(data)
 		if perr != nil {
 			exitWithErr(perr)
@@ -97,7 +99,7 @@ func main() {
 		fmt.Println("Rules:", string(json))
 	}
 
-	result := transform.ApplyAll(*doc, conf)
+	result := transform.ApplyAll(*doc, conf, fromASS)
 
 	outPath := deriveOutputPath(inputPath)
 	if verbose {
