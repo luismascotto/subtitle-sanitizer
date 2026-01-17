@@ -71,7 +71,8 @@ func parseSRTBlock(lines []string) (*model.Cue, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse timing: %w", err)
 	}
-	textLines := append([]string{}, lines[2:]...)
+	//textLines := append([]string{}, lines[2:]...)
+	textLines := strings.Join(lines[2:], "\n")
 	return &model.Cue{
 		Start: start,
 		End:   end,
@@ -150,13 +151,7 @@ func FormatSRT(doc model.Document) []byte {
 	var buf bytes.Buffer
 	index := 1
 	for _, cue := range doc.Cues {
-		hasText := false
-		for _, line := range cue.Lines {
-			if strings.TrimSpace(line) != "" {
-				hasText = true
-				break
-			}
-		}
+		hasText := strings.TrimSpace(cue.Lines) != ""
 		if !hasText {
 			continue
 		}
@@ -168,10 +163,8 @@ func FormatSRT(doc model.Document) []byte {
 		buf.WriteString(formatSRTTime(cue.Start))
 		buf.WriteString(" --> ")
 		buf.WriteString(formatSRTTime(cue.End))
-		for _, line := range cue.Lines {
-			buf.WriteString("\n")
-			buf.WriteString(line)
-		}
+		buf.WriteString("\n")
+		buf.WriteString(cue.Lines)
 		buf.WriteString("\n")
 		index++
 	}

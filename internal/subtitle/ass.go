@@ -107,12 +107,11 @@ func parseASSEventsBlock(blk []string) ([]*model.Cue, error) {
 		if err != nil {
 			return nil, fmt.Errorf("parse timing: %w", err)
 		}
-		cueTextLines := strings.Split(parts[textIndex], "\\N")
 
 		cues = append(cues, &model.Cue{
 			Start: start,
 			End:   end,
-			Lines: cueTextLines,
+			Lines: strings.ReplaceAll(parts[textIndex], "\\N", "\n"),
 		})
 	}
 	return cues, nil

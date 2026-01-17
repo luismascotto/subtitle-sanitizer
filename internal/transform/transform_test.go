@@ -38,7 +38,7 @@ func Test_removeUppercaseColonWords(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, got := removeUppercaseColonWords(tt.s)
 
-			if !strings.Contains(got, tt.want) {
+			if got != tt.want {
 				t.Errorf("removeUppercaseColonWords() = [%v], want [%v]", got, tt.want)
 			}
 		})
@@ -58,22 +58,32 @@ func Test_removeSingleLineColon(t *testing.T) {
 			want: "Hello World",
 		},
 		{
-			name: "remove  single line with colon",
+			name: "remove single line ending with colon",
 			s:    "That woman said:",
 			want: "",
 		},
 		{
-			name: "line with colon but have more than 3 words",
+			name: "dont remove single line ending with colon and have more than 3 words",
 			s:    "This is a special release:",
 			want: "This is a special release:",
+		},
+		{
+			name: "dont remove line if not ending with colon",
+			s:    "This release: hello",
+			want: "This release: hello",
+		},
+		{
+			name: "remove single line int text ending with colon",
+			s:    "Hey\nThat woman said:",
+			want: "Hey",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, got := removeUppercaseColonWords(tt.s)
+			_, got := removeSingleLineColon(tt.s)
 
-			if !strings.Contains(got, tt.want) {
-				t.Errorf("removeUppercaseColonWords() = [%v], want [%v]", got, tt.want)
+			if got != tt.want {
+				t.Errorf("removeSingleLineColon() = [%v], want [%v]", got, tt.want)
 			}
 		})
 	}
@@ -96,6 +106,7 @@ func Test_removeBetweenDelimitersParentheses(t *testing.T) {
 			left := regexp.QuoteMeta("(")
 			right := regexp.QuoteMeta(")")
 			// Match shortest content between literal left/right (right is single-char here)
+			//re := regexp.MustCompile(fmt.Sprintf(`%s[^%s]*%s`, left, right, right))
 			re := regexp.MustCompile(fmt.Sprintf(`%s[^%s]*%s`, left, right, right))
 			// Remove the text including the delimiters
 			got := strings.TrimSpace(re.ReplaceAllString(tt.s, ""))
@@ -250,6 +261,60 @@ func Test_convertASSFormattingToSRT(t *testing.T) {
 			got := convertASSFormattingToSRT(tt.in)
 			if got != tt.want {
 				t.Fatalf("convertASSFormattingToSRT(%q) = %q; want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_dontRemoveBetweenDelimitersAcrossLines(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		want string
+	}{
+		{
+			name: "don't remove between delimiters across lines",
+			s:    "Hello [World is\nending]",
+			want: "Hello [World is\nending]",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			left := regexp.QuoteMeta("[")
+			right := regexp.QuoteMeta("]")
+			// Match shortest content between literal left/right (right is single-char here)
+			re := regexp.MustCompile(fmt.Sprintf(`%s[^%s\n]{0,}%s`, left, right, right))
+			// Remove the text including the delimiters
+			got := strings.TrimSpace(re.ReplaceAllString(tt.s, ""))
+			if got != tt.want {
+				t.Errorf("removeBetweenDelimiters() = [%v], want [%v]", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_removeBetweenDelimitersAcrossLines(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		want string
+	}{
+		{
+			name: "remove between delimiters across lines",
+			s:    "Hello [World is\nending]",
+			want: "Hello",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			left := regexp.QuoteMeta("[")
+			right := regexp.QuoteMeta("]")
+			// Match shortest content between literal left/right (right is single-char here)
+			re := regexp.MustCompile(fmt.Sprintf(`%s[^%s]{0,}%s`, left, right, right))
+			// Remove the text including the delimiters
+			got := strings.TrimSpace(re.ReplaceAllString(tt.s, ""))
+			if got != tt.want {
+				t.Errorf("removeBetweenDelimiters() = [%v], want [%v]", got, tt.want)
 			}
 		})
 	}

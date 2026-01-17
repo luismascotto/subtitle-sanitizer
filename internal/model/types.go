@@ -6,7 +6,7 @@ type Cue struct {
 	Index int
 	Start time.Duration
 	End   time.Duration
-	Lines []string
+	Lines string
 }
 
 type Document struct {
