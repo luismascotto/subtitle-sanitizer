@@ -116,6 +116,10 @@ func Test_removeBetweenDelimitersBrackets(t *testing.T) {
 			name: "remove between delimiters",
 			s:    "Hello [World]",
 			want: "Hello",
+		}, {
+			name: "remove between delimiters, with empty content",
+			s:    "Hello []",
+			want: "Hello",
 		},
 	}
 	for _, tt := range tests {
@@ -123,7 +127,7 @@ func Test_removeBetweenDelimitersBrackets(t *testing.T) {
 			left := regexp.QuoteMeta("[")
 			right := regexp.QuoteMeta("]")
 			// Match shortest content between literal left/right (right is single-char here)
-			re := regexp.MustCompile(fmt.Sprintf(`%s[^%s]*%s`, left, right, right))
+			re := regexp.MustCompile(fmt.Sprintf(`%s[^%s]{0,}%s`, left, right, right))
 			// Remove the text including the delimiters
 			got := strings.TrimSpace(re.ReplaceAllString(tt.s, ""))
 			if got != tt.want {
@@ -140,11 +144,11 @@ func Test_removeBetweenDelimitersCurlyBraces(t *testing.T) {
 		want string
 	}{
 		{
-			name: "remove between delimiters",
+			name: "remove between delimiters, avoid formatting delimiters",
 			s:    "{\\b1}Hello {World}{\\b0}",
 			want: "{\\b1}Hello {\\b0}",
 		}, {
-			name: "remove between delimiters",
+			name: "remove between delimiters, avoid formatting delimiters 2",
 			s:    "{\\b1}Hello {World}{\\b0}",
 			want: "{\\b1}Hello {\\b0}",
 		},
@@ -155,6 +159,46 @@ func Test_removeBetweenDelimitersCurlyBraces(t *testing.T) {
 			right := regexp.QuoteMeta("}")
 			// Match shortest content between literal left/right (right is single-char here)
 			re := regexp.MustCompile(fmt.Sprintf(`%s[^%s\\]*%s`, left, right, right))
+			// Remove the text including the delimiters
+			got := strings.TrimSpace(re.ReplaceAllString(tt.s, ""))
+			if got != tt.want {
+				t.Errorf("removeBetweenDelimiters() = [%v], want [%v]", got, tt.want)
+			}
+		})
+	}
+}
+
+// Between < and > delimiters
+func Test_removeBetweenDelimitersAngleBrackets(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		want string
+	}{
+		{
+			name: "remove between delimiters",
+			s:    "<Hello> World",
+			want: "World",
+		}, {
+			name: "remove between delimiters, avoid formatting delimiters",
+			s:    "<Hello> <i>World</i>",
+			want: "<i>World</i>",
+		}, {
+			name: "remove between delimiters, avoid formatting delimiters 2",
+			s:    "<Hello> <bold>World</bold>",
+			want: "World</bold>",
+		}, {
+			name: "remove between delimiters, avoid formatting delimiters 3",
+			s:    "<font color='red'>Hello</font> <wrong>World</bold>",
+			want: "<font color='red'>Hello</font> World</bold>",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			left := regexp.QuoteMeta("<")
+			right := regexp.QuoteMeta(">")
+			// Match shortest content between literal left/right (right is single-char here)
+			re := regexp.MustCompile(fmt.Sprintf(`%s[^%s\\/=]{3,}%s`, left, right, right))
 			// Remove the text including the delimiters
 			got := strings.TrimSpace(re.ReplaceAllString(tt.s, ""))
 			if got != tt.want {

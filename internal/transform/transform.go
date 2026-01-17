@@ -60,18 +60,24 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 
 			if text != "" && len(conf.RemoveBetweenDelimiters) > 0 {
 				for _, delimiter := range conf.RemoveBetweenDelimiters {
-					protectBackslash := ""
+					controlEscape := ""
 					if delimiter.Left == "{" {
 						// ASS format uses curly braces for formatting (italic, bold, etc.), {\i1}Text{\i0}
-						//  so we need to protect them from being removed
-						protectBackslash = "\\"
+						controlEscape = "\\"
+					}
+					minContentLen := 0
+					if delimiter.Left == "<" {
+						// SRT format uses angle brackets for formatting (italic, bold, etc.), <i>Text</i>
+						// also <font xxx>Text</font>
+						minContentLen = 3
+						controlEscape = "/="
 					}
 					// Quote delimiter literals to avoid regex meta interpretation.
 					left := regexp.QuoteMeta(delimiter.Left)
 					right := regexp.QuoteMeta(delimiter.Right)
 					// Use a negated character class against the right delimiter (assumed single rune)
 					// to avoid greedy cross-boundary removal; replace all occurrences.
-					re, err := regexp.Compile(fmt.Sprintf(`%s[^%s%s]*%s`, left, protectBackslash, right, right))
+					re, err := regexp.Compile(fmt.Sprintf(`%s[^%s%s]{%d,}%s`, left, controlEscape, right, minContentLen, right))
 					if err != nil {
 						fmt.Println("Error compiling regex:", err, "for delimiter:", delimiter)
 						continue

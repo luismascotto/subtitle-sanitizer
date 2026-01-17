@@ -80,7 +80,7 @@ func main() {
 		{Left: "[", Right: "]"},
 		{Left: "{", Right: "}"},
 		{Left: "?", Right: "?"},
-		{Left: "!", Right: "!"},
+		{Left: "<", Right: ">"},
 		{Left: "¶", Right: "¶"},
 		{Left: "♪", Right: "♪"},
 		{Left: "♫", Right: "♫"},
