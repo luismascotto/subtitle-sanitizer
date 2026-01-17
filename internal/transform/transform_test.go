@@ -207,3 +207,50 @@ func Test_removeBetweenDelimitersAngleBrackets(t *testing.T) {
 		})
 	}
 }
+
+func Test_convertASSFormattingToSRT(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "italic on/off",
+			in:   "{\\i1}Text{\\i0}",
+			want: "<i>Text</i>",
+		},
+		{
+			name: "bold + italic nested",
+			in:   "{\\b1}{\\i1}Text{\\i0}{\\b0}",
+			want: "<b><i>Text</i></b>",
+		},
+		{
+			name: "underline and strike",
+			in:   "{\\u1}Under{\\u0} and {\\s1}strike{\\s0}",
+			want: "<u>Under</u> and <s>strike</s>",
+		},
+		{
+			name: "opening within text",
+			in:   "Hello {\\b1}World{\\b0}",
+			want: "Hello <b>World</b>",
+		},
+		{
+			name: "other style ASS tag removed",
+			in:   "{\\pos(10,20)}Text",
+			want: "Text",
+		},
+		{
+			name: "centervalues other than 1 also open tag",
+			in:   "{\\b7002}Text{\\b0}",
+			want: "<b>Text</b>",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := convertASSFormattingToSRT(tt.in)
+			if got != tt.want {
+				t.Fatalf("convertASSFormattingToSRT(%q) = %q; want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}

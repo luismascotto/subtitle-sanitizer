@@ -18,7 +18,7 @@ var (
 )
 
 // ApplyAll runs all enabled transformations based on rules.
-func ApplyAll(doc model.Document, conf rules.Config) model.Document {
+func ApplyAll(doc model.Document, conf rules.Config, fromASS bool) model.Document {
 	out := model.Document{
 		Cues: []*model.Cue{},
 	}
@@ -36,6 +36,10 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 
 		for _, line := range cue.Lines {
 			text := line
+
+			if fromASS {
+				text = convertASSFormattingToSRT(text)
+			}
 
 			if conf.RemoveLineIfContains != "" && strings.Contains(text, conf.RemoveLineIfContains) {
 				ruleTriggered = true
@@ -143,4 +147,26 @@ func lineHasAlphabetic(s string) bool {
 		}
 	}
 	return false
+}
+
+func convertASSFormattingToSRT(s string) string {
+	// Convert ASS formatting to SRT formatting
+	// ASS format uses curly braces for formatting (italic, bold, etc.), {\i1}Text{\i0}
+	// SRT format uses angle brackets for formatting (italic, bold, etc.), <i>Text</i>
+	// {\X1..N} -> <X>
+	// {\X0} -> </X>
+	// X -> b, i, u, s
+
+	//Ignore other formatting
+
+	// Opening tags: {\i1}, {\b2}, etc. (any non-zero digit(s))
+	open := regexp.MustCompile(`{\\([bius])[1-9]\d*}`)
+	formatted := open.ReplaceAllString(s, "<$1>")
+	// Closing tags: {\i0}, {\b0}, etc.
+	close := regexp.MustCompile(`{\\([bius])0}`)
+	formatted = close.ReplaceAllString(formatted, "</$1>")
+
+	ignore := regexp.MustCompile(`{\\[^bius][^}]*}`)
+	formatted = ignore.ReplaceAllString(formatted, "")
+	return formatted
 }
