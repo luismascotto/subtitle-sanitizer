@@ -36,6 +36,14 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 
 		for _, line := range cue.Lines {
 			text := line
+
+			if conf.RemoveLineIfContains != "" && strings.Contains(text, conf.RemoveLineIfContains) {
+				ruleTriggered = true
+				rulesApplied = append(rulesApplied, "removeLineIfContains")
+				// Skip processing this line
+				continue
+			}
+
 			if conf.RemoveUppercaseColonWords {
 				ruleTriggered, text = removeUppercaseColonWords(text)
 				if ruleTriggered {
@@ -50,20 +58,20 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 				}
 			}
 
-			if text != "" && conf.RemoveLineIfContains != "" && strings.Contains(text, conf.RemoveLineIfContains) {
-				ruleTriggered = true
-				rulesApplied = append(rulesApplied, "removeLineIfContains")
-				text = ""
-			}
-
 			if text != "" && len(conf.RemoveBetweenDelimiters) > 0 {
 				for _, delimiter := range conf.RemoveBetweenDelimiters {
+					protectBackslash := ""
+					if delimiter.Left == "{" {
+						// ASS format uses curly braces for formatting (italic, bold, etc.), {\i1}Text{\i0}
+						//  so we need to protect them from being removed
+						protectBackslash = "\\"
+					}
 					// Quote delimiter literals to avoid regex meta interpretation.
 					left := regexp.QuoteMeta(delimiter.Left)
 					right := regexp.QuoteMeta(delimiter.Right)
 					// Use a negated character class against the right delimiter (assumed single rune)
 					// to avoid greedy cross-boundary removal; replace all occurrences.
-					re, err := regexp.Compile(fmt.Sprintf(`%s[^%s]*%s`, left, right, right))
+					re, err := regexp.Compile(fmt.Sprintf(`%s[^%s%s]*%s`, left, protectBackslash, right, right))
 					if err != nil {
 						fmt.Println("Error compiling regex:", err, "for delimiter:", delimiter)
 						continue
@@ -73,7 +81,7 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 						rulesApplied = append(rulesApplied, "removeBetweenDelimiters"+delimiter.Left+delimiter.Right)
 						text = strings.TrimSpace(re.ReplaceAllString(text, ""))
 						if text == "" {
-							// Skip unnecessary processing
+							// Skip unnecessary RemoveBetweenDelimiters rule processing
 							break
 						}
 					}
@@ -81,7 +89,7 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 			}
 
 			if text != "" {
-				text = normalizeSpaces(text)
+				text = strings.TrimSpace(collapseSpaces(text))
 				if lineHasAlphabetic(text) {
 					newCue.Lines = append(newCue.Lines, text)
 				}
@@ -103,7 +111,7 @@ func ApplyAll(doc model.Document, conf rules.Config) model.Document {
 func removeUppercaseColonWords(s string) (bool, string) {
 	// Remove words of 2+ uppercase letters.
 	// Use word boundaries to avoid partial matches. Keep punctuation spacing tidy later.
-	if reUppercaseColonWords.MatchString(s) {
+	if len(s) > 0 && reUppercaseColonWords.MatchString(s) {
 		return true, reUppercaseColonWords.ReplaceAllString(s, "")
 	}
 	return false, s
@@ -112,25 +120,10 @@ func removeUppercaseColonWords(s string) (bool, string) {
 func removeSingleLineColon(s string) (bool, string) {
 	// Remove line if ends with a colon, with 3 words os less, case insensitive
 	// Use word boundaries to avoid partial matches. Keep punctuation spacing tidy later.
-	if reColonWordsSingleLine.MatchString(s) {
+	if len(s) > 0 && reColonWordsSingleLine.MatchString(s) {
 		return true, reColonWordsSingleLine.ReplaceAllString(s, "")
 	}
 	return false, s
-}
-
-func normalizeSpaces(s string) string {
-	// Collapse multiple spaces; trim. Maintain <br /> intact.
-	// Strategy: split preserving <br /> tokens.
-	const br = "<br />"
-	if !strings.Contains(s, br) {
-		return strings.TrimSpace(collapseSpaces(s))
-	}
-	parts := strings.Split(s, br)
-	for i := range parts {
-		parts[i] = collapseSpaces(strings.TrimSpace(parts[i]))
-	}
-	joined := strings.Join(parts, " "+br+" ")
-	return strings.TrimSpace(collapseSpaces(joined))
 }
 
 func collapseSpaces(s string) string {

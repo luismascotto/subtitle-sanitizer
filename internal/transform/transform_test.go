@@ -132,3 +132,34 @@ func Test_removeBetweenDelimitersBrackets(t *testing.T) {
 		})
 	}
 }
+
+func Test_removeBetweenDelimitersCurlyBraces(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		want string
+	}{
+		{
+			name: "remove between delimiters",
+			s:    "{\\b1}Hello {World}{\\b0}",
+			want: "{\\b1}Hello {\\b0}",
+		}, {
+			name: "remove between delimiters",
+			s:    "{\\b1}Hello {World}{\\b0}",
+			want: "{\\b1}Hello {\\b0}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			left := regexp.QuoteMeta("{")
+			right := regexp.QuoteMeta("}")
+			// Match shortest content between literal left/right (right is single-char here)
+			re := regexp.MustCompile(fmt.Sprintf(`%s[^%s\\]*%s`, left, right, right))
+			// Remove the text including the delimiters
+			got := strings.TrimSpace(re.ReplaceAllString(tt.s, ""))
+			if got != tt.want {
+				t.Errorf("removeBetweenDelimiters() = [%v], want [%v]", got, tt.want)
+			}
+		})
+	}
+}
