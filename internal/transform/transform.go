@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/yourname/subtitle-sanitizer/internal/model"
-	"github.com/yourname/subtitle-sanitizer/internal/rules"
+	"github.com/luismascotto/subtitle-sanitizer/internal/model"
+	"github.com/luismascotto/subtitle-sanitizer/internal/rules"
 )
 
 var (
@@ -17,11 +17,10 @@ var (
 )
 
 // ApplyAll runs all enabled transformations based on rules.
-func ApplyAll(doc model.Document, conf rules.Config, fromASS bool) model.Document {
+func ApplyAll(doc model.Document, conf rules.Config, fromASS bool, outSb *strings.Builder) model.Document {
 	out := model.Document{
 		Cues: []*model.Cue{},
 	}
-
 	for _, cue := range doc.Cues {
 		rulesApplied := []string{}
 		ruleTriggered := false
@@ -97,21 +96,25 @@ func ApplyAll(doc model.Document, conf rules.Config, fromASS bool) model.Documen
 		}
 
 		if text != "" {
-			text = strings.TrimSuffix(text, "\n")
-			text = strings.TrimPrefix(text, "\n")
-			text = strings.TrimSpace(collapseSpaces(text))
-			if lineHasAlphabetic(text) {
-				newCue.Lines = text
+
+			textLines := strings.Split(text, "\n")
+			finalTextLines := []string{}
+			for i := range textLines {
+				if lineHasAlphabetic(textLines[i]) {
+					finalTextLines = append(finalTextLines, textLines[i])
+				}
 			}
+			newCue.Lines = strings.Join(finalTextLines, "\n")
+			newCue.Lines = strings.TrimSpace(collapseSpaces(strings.TrimSuffix(strings.TrimPrefix(newCue.Lines, "\n"), "\n")))
 		}
 
-		if len(rulesApplied) > 0 {
+		if len(rulesApplied) > 0 && outSb != nil {
 			//Print cue index, original text and transformed text
-			fmt.Printf("Cue %d: %s -> %s \t%v\n",
+			fmt.Fprintf(outSb, "| %d | %s | %s | %s |\n",
 				cue.Index,
 				strings.ReplaceAll(cue.Lines, "\n", " \\n "),
 				strings.ReplaceAll(newCue.Lines, "\n", " \\n "),
-				rulesApplied)
+				strings.Join(rulesApplied, ", "))
 		}
 
 		out.Cues = append(out.Cues, newCue)

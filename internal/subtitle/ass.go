@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourname/subtitle-sanitizer/internal/model"
+	"github.com/luismascotto/subtitle-sanitizer/internal/model"
 )
 
 // index for acessing splitted ass dialogue line

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourname/subtitle-sanitizer/internal/model"
+	"github.com/luismascotto/subtitle-sanitizer/internal/model"
 )
 
 // ParseSRT parses minimal, common SRT. Best-effort if ignoreMinorErrors is true.
