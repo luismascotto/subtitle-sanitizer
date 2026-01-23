@@ -93,7 +93,8 @@ func main() {
 	}
 	conf.RemoveLineIfContains = " music *"
 
-	json, err := json.MarshalIndent(conf, "", "  ")
+	json, err := json.Marshal(conf)
+	//json, err := colorjson.Marshal(conf)
 	if err != nil {
 		exitWithErr(fmt.Errorf("marshal rules: %w", err))
 	}
@@ -159,8 +160,8 @@ func validateInputPath(p string) error {
 func deriveOutputPath(inputPath string) string {
 	dir := filepath.Dir(inputPath)
 	base := filepath.Base(inputPath)
-	//name := strings.TrimSuffix(base, filepath.Ext(base))
-	newName := filepath.Join(dir, base+"-his.srt")
+	name := strings.TrimSuffix(base, filepath.Ext(base))
+	newName := filepath.Join(dir, name+".srt")
 	if _, err := os.Stat(newName); err != nil && os.IsNotExist(err) {
 		// Happy path
 		return newName
@@ -174,7 +175,7 @@ func exitWithErr(err error) {
 }
 
 // --- Bubble Tea TUI ---
-type tickMsg struct{}
+//type tickMsg struct{}
 
 type UIModel struct {
 	viewport viewport.Model
@@ -182,9 +183,9 @@ type UIModel struct {
 
 func newModel(content string) (*UIModel, error) {
 
-	const width = 120
+	const width = 100
 
-	vp := viewport.New(width, 40)
+	vp := viewport.New(width, 32)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).
@@ -247,23 +248,23 @@ func (m UIModel) View() string {
 	return m.viewport.View() + helpView.Render("\n  ↑/↓: Navigate • q: Quit\n")
 }
 
-type colorTheme struct {
-	fg string
-	bg string
-}
+// type colorTheme struct {
+// 	fg string
+// 	bg string
+// }
 
-var colorThemes = []colorTheme{
-	{fg: "#FFD166", bg: "#073B4C"}, // golden on deep teal
-	{fg: "#06D6A0", bg: "#1B1F3B"}, // mint on midnight
-	{fg: "#EF476F", bg: "#2F2E41"}, // pink on ink
-	{fg: "#A78BFA", bg: "#111827"}, // violet on near-black
-	{fg: "#F59E0B", bg: "#0F172A"}, // amber on slate
-}
+//	var colorThemes = []colorTheme{
+//		{fg: "#FFD166", bg: "#073B4C"}, // golden on deep teal
+//		{fg: "#06D6A0", bg: "#1B1F3B"}, // mint on midnight
+//		{fg: "#EF476F", bg: "#2F2E41"}, // pink on ink
+//		{fg: "#A78BFA", bg: "#111827"}, // violet on near-black
+//		{fg: "#F59E0B", bg: "#0F172A"}, // amber on slate
+//	}
 var (
-	headerStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#93C5FD")).Background(lipgloss.Color("#1F2937")).Bold(true).Padding(0, 1)
-	dividerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#374151"))
-	timeStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Bold(true)
-	messageStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
-	secondaryStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
-	helpView       = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Italic(true)
+	// headerStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#93C5FD")).Background(lipgloss.Color("#1F2937")).Bold(true).Padding(0, 1)
+	// dividerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#374151"))
+	// timeStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Bold(true)
+	// messageStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	// secondaryStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
+	helpView = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Italic(true)
 )
