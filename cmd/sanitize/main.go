@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"math/rand"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alexflint/go-arg"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
@@ -24,56 +24,13 @@ import (
 )
 
 func main() {
-	var inputPath string
-	var encoding string
-	// var verbose bool
-	var ignoreErrors bool
-
-	flag.StringVar(&inputPath, "input", "", "Path to input subtitle file (.srt or .ass)")
-	flag.StringVar(&encoding, "encoding", "utf-8", "Text encoding (currently uses utf-8)")
-	// flag.BoolVar(&verbose, "verbose", false, "Verbose logging")
-	flag.BoolVar(&ignoreErrors, "ignoreErrors", false, "Best-effort continue on minor errors")
-	flag.Parse()
-
-	if inputPath == "" {
-		exitWithErr(errors.New("missing -input path"))
+	var args struct {
+		Input []string `arg:"positional"`
+		// SrtBackup    bool     `arg:"-b,--srt-backup" help:"backup original srt files"`
+		// SrtOverwrite bool     `arg:"-o,--srt-overwrite" help:"overwrite original srt files"`
+		IgnoreErrors bool `arg:"-i,--ignore-errors" help:"ignore minor errors" default:"true"`
 	}
-
-	if err := validateInputPath(inputPath); err != nil {
-		exitWithErr(err)
-	}
-
-	file, err := os.Open(inputPath)
-	if err != nil {
-		exitWithErr(fmt.Errorf("open file: %w", err))
-	}
-	defer file.Close()
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		exitWithErr(fmt.Errorf("read file: %w", err))
-	}
-
-	ext := strings.ToLower(filepath.Ext(inputPath))
-	var doc *model.Document
-	var fromASS bool
-	switch ext {
-	case ".srt":
-		d, perr := subtitle.ParseSRT(data, ignoreErrors)
-		if perr != nil {
-			exitWithErr(perr)
-		}
-		doc = d
-	case ".ass":
-		fromASS = true
-		d, perr := subtitle.ParseASS(data)
-		if perr != nil {
-			exitWithErr(perr)
-		}
-		doc = d
-	default:
-		exitWithErr(fmt.Errorf("unsupported extension: %s", ext))
-	}
+	arg.MustParse(&args)
 
 	conf := rules.LoadDefaultOrEmpty()
 	// Current default built-in: remove uppercase words (2+ chars)
@@ -99,45 +56,96 @@ func main() {
 		exitWithErr(fmt.Errorf("marshal rules: %w", err))
 	}
 
-	sbContent := strings.Builder{}
-	sbContent.WriteString("# Subtitle Sanitizer\n\n## Rules\n```json\n")
-	sbContent.WriteString(string(json))
-	sbContent.WriteString("\n```\n\n")
+	for _, inputPath := range args.Input {
 
-	sbTransformations := strings.Builder{}
-	result := transform.ApplyAll(*doc, conf, fromASS, &sbTransformations)
+		// inputPath := args.Input[0]
+		if inputPath == "" {
+			exitWithErr(errors.New("missing -input path"))
+		}
 
-	sbContent.WriteString("## Transformations\n")
-	if sbTransformations.Len() > 0 {
-		sbContent.WriteString("| Line# | Original | Transformed | Rules Applied |\n")
-		sbContent.WriteString("| --- | --- | --- | --- |\n")
-		sbContent.WriteString(sbTransformations.String())
-	} else {
-		sbContent.WriteString("Nothing to remove...\n")
+		if err := validateInputPath(inputPath); err != nil {
+			exitWithErr(err)
+		}
+
+		file, err := os.Open(inputPath)
+		if err != nil {
+			exitWithErr(fmt.Errorf("open file: %w", err))
+		}
+		defer file.Close()
+
+		data, err := io.ReadAll(file)
+		if err != nil {
+			exitWithErr(fmt.Errorf("read file: %w", err))
+		}
+
+		ext := strings.ToLower(filepath.Ext(inputPath))
+		var doc *model.Document
+		var fromASS bool
+		switch ext {
+		case ".srt":
+			d, perr := subtitle.ParseSRT(data, args.IgnoreErrors)
+			if perr != nil {
+				exitWithErr(perr)
+			}
+			doc = d
+		case ".ass":
+			fromASS = true
+			d, perr := subtitle.ParseASS(data)
+			if perr != nil {
+				exitWithErr(perr)
+			}
+			doc = d
+		default:
+			exitWithErr(fmt.Errorf("unsupported extension: %s", ext))
+		}
+
+		sbContent := strings.Builder{}
+		sbContent.WriteString("\n\n# Subtitle Sanitizer\n\n## Rules\n```json\n")
+		sbContent.WriteString(string(json))
+		sbContent.WriteString("\n```\n\n")
+
+		sbContent.WriteString("## " + filepath.Base(inputPath) + "\n")
+
+		sbTransformations := strings.Builder{}
+		result := transform.ApplyAll(*doc, conf, fromASS, &sbTransformations)
+
+		sbContent.WriteString("## Transformations\n")
+		if sbTransformations.Len() > 0 {
+			sbContent.WriteString("| Pos# | Original | Transformed/removed/empty | Rules |\n")
+			sbContent.WriteString("| --- | --- | --- | --- |\n")
+			sbContent.WriteString(sbTransformations.String())
+		} else {
+			sbContent.WriteString("Nothing to remove...\n")
+		}
+
+		vpModel, err := newModel(sbContent.String())
+		if err != nil {
+			exitWithErr(fmt.Errorf("new model: %w", err))
+		}
+
+		retModel, err := tea.NewProgram(vpModel, tea.WithMouseAllMotion()).Run()
+		if err != nil {
+			exitWithErr(fmt.Errorf("run tea program: %w", err))
+		}
+		retModelCheck, ok := retModel.(UIModel)
+		if !ok {
+			exitWithErr(errors.New("retModel is not of type UIModel"))
+		}
+		if retModelCheck.skip {
+			continue
+		}
+		outPath := deriveOutputPath(inputPath, retModelCheck.overwrite)
+
+		outData := subtitle.FormatSRT(result) // Always save as .srt
+		if err := os.WriteFile(outPath, outData, 0644); err != nil {
+			exitWithErr(fmt.Errorf("write output: %w", err))
+		}
+
+		if fromASS && retModelCheck.overwrite {
+			_ = os.Remove(inputPath)
+		}
+
 	}
-
-	vpModel, err := newModel(sbContent.String())
-	if err != nil {
-		exitWithErr(fmt.Errorf("new model: %w", err))
-	}
-
-	if _, err := tea.NewProgram(vpModel).Run(); err != nil {
-		exitWithErr(fmt.Errorf("run tea program: %w", err))
-	}
-
-	outPath := deriveOutputPath(inputPath)
-	// if verbose {
-	// 	fmt.Println("Output:", outPath)
-	// }
-
-	outData := subtitle.FormatSRT(result) // Always save as .srt
-	if err := os.WriteFile(outPath, outData, 0644); err != nil {
-		exitWithErr(fmt.Errorf("write output: %w", err))
-	}
-
-	// if verbose {
-	// 	fmt.Println("Done")
-	// }
 }
 
 func validateInputPath(p string) error {
@@ -157,16 +165,35 @@ func validateInputPath(p string) error {
 	}
 }
 
-func deriveOutputPath(inputPath string) string {
+func deriveOutputPath(inputPath string, overwrite bool) string {
 	dir := filepath.Dir(inputPath)
 	base := filepath.Base(inputPath)
 	name := strings.TrimSuffix(base, filepath.Ext(base))
 	newName := filepath.Join(dir, name+".srt")
-	if _, err := os.Stat(newName); err != nil && os.IsNotExist(err) {
-		// Happy path
+	if !FileExists(newName) || overwrite {
+		// Happy path .ass to .srt
 		return newName
 	}
-	return filepath.Join(dir, base+"-his_"+strconv.FormatInt(int64(rand.Intn(1000)), 16)+".srt")
+
+	newName = filepath.Join(dir, name+"-his.srt")
+	if !FileExists(newName) {
+		// Happy path .srt to -his.srt
+		return newName
+	}
+
+	for range 5 {
+		newName = filepath.Join(dir, name+"-his_"+strconv.FormatInt(int64(rand.Intn(1000)), 16)+".srt")
+		if !FileExists(newName) {
+			return newName
+		}
+	}
+	exitWithErr(errors.New("failed to derive output path"))
+	return ""
+}
+
+func FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
 }
 
 func exitWithErr(err error) {
@@ -178,7 +205,11 @@ func exitWithErr(err error) {
 //type tickMsg struct{}
 
 type UIModel struct {
-	viewport viewport.Model
+	viewport  viewport.Model
+	quit      bool
+	apply     bool
+	skip      bool
+	overwrite bool
 }
 
 func newModel(content string) (*UIModel, error) {
@@ -224,19 +255,34 @@ func newModel(content string) (*UIModel, error) {
 
 func (m UIModel) Init() tea.Cmd {
 	//return tea.Tick(time.Second, func(time.Time) tea.Msg { return tickMsg{} })
+
 	return nil
 }
 
 func (m UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
+	case tea.MouseMsg:
+		// Pass mouse events to the viewport component
+		m.viewport, cmd = m.viewport.Update(msg)
+		return m, cmd
 	case tea.KeyMsg:
 		switch msg.String() {
 
-		case "q", "esc", "ctrl+c":
-			//m.shouldQuit = true
+		case "q", "x", "ctrl+c":
+			m.quit = true
+			return m, tea.Quit
+		case "n", "esc":
+			m.skip = true
+			return m, tea.Quit
+		case "s", "a", "enter":
+			m.apply = true
+			return m, tea.Quit
+		case "o", "w":
+			m.apply = true
+			m.overwrite = true
 			return m, tea.Quit
 		default:
-			var cmd tea.Cmd
 			m.viewport, cmd = m.viewport.Update(msg)
 			return m, cmd
 		}
@@ -245,7 +291,7 @@ func (m UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m UIModel) View() string {
-	return m.viewport.View() + helpView.Render("\n  ↑/↓: Navigate • q: Quit\n")
+	return m.viewport.View() + helpView.Render("\n  ↑/↓: Navigate • q/x: Quit • esc/n: Skip • s/a: Apply • o/w: Overwrite\n")
 }
 
 // type colorTheme struct {
