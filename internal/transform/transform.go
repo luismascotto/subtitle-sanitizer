@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/luismascotto/subtitle-sanitizer/internal/model"
 	"github.com/luismascotto/subtitle-sanitizer/internal/rules"
@@ -13,7 +14,7 @@ import (
 var (
 	// reBr                  = regexp.MustCompile(`<br />`)
 	reSpaces              = regexp.MustCompile(`\s{2,}`)
-	reUppercaseColonWords = regexp.MustCompile(`\b[A-Z]{2,}:[ \t]*`)
+	reUppercaseColonWords = regexp.MustCompile(`\b[A-Z]{2,}\s*:[ \t]*`)
 )
 
 // ApplyAll runs all enabled transformations based on rules.
@@ -40,27 +41,31 @@ func ApplyAll(doc model.Document, conf rules.Config, fromASS bool, outSb *string
 
 		if conf.RemoveLineIfContains != "" && strings.Contains(text, conf.RemoveLineIfContains) {
 			ruleTriggered = true
-			rulesApplied = append(rulesApplied, "removeLineIfContains")
+			rulesApplied = append(rulesApplied, "removeIfContains")
 			// Skip processing this line
 			continue
-		}
-
-		if conf.RemoveUppercaseColonWords {
-			ruleTriggered, text = removeUppercaseColonWords(text)
-			if ruleTriggered {
-				rulesApplied = append(rulesApplied, "removeUppercaseColonWords")
-			}
 		}
 
 		if conf.RemoveSingleLineColon {
 			ruleTriggered, text = removeSingleLineColon(text)
 			if ruleTriggered {
-				rulesApplied = append(rulesApplied, "removeSingleLineColon")
+				rulesApplied = append(rulesApplied, "removeLineColon")
+			}
+		}
+
+		if conf.RemoveUppercaseColonWords {
+			ruleTriggered, text = removeUppercaseColonWords(text)
+			if ruleTriggered {
+				rulesApplied = append(rulesApplied, "removeUpperColonWords")
 			}
 		}
 
 		if text != "" && len(conf.RemoveBetweenDelimiters) > 0 {
 			for _, delimiter := range conf.RemoveBetweenDelimiters {
+				// If delimiters are equal, try to normalize repetitions of the same delimites (ex: ♪♪ text ♪♪ -> ♪ text ♪)
+				if utf8.RuneCountInString(delimiter.Left) == 1 && delimiter.Left == delimiter.Right {
+					text = strings.ReplaceAll(text, delimiter.Left+delimiter.Left, delimiter.Left)
+				}
 				controlEscape := ""
 				if delimiter.Left == "{" {
 					// ASS format uses curly braces for formatting (italic, bold, etc.), {\i1}Text{\i0}
@@ -85,7 +90,7 @@ func ApplyAll(doc model.Document, conf rules.Config, fromASS bool, outSb *string
 				}
 				if re.MatchString(text) {
 					ruleTriggered = true
-					rulesApplied = append(rulesApplied, "removeBetweenDelimiters"+delimiter.Left+delimiter.Right)
+					rulesApplied = append(rulesApplied, "removeDelims "+delimiter.Left+" "+delimiter.Right)
 					text = strings.TrimSpace(re.ReplaceAllString(text, ""))
 					if text == "" {
 						// Skip unnecessary RemoveBetweenDelimiters rule processing
@@ -96,7 +101,6 @@ func ApplyAll(doc model.Document, conf rules.Config, fromASS bool, outSb *string
 		}
 
 		if text != "" {
-
 			textLines := strings.Split(text, "\n")
 			finalTextLines := []string{}
 			for i := range textLines {
@@ -110,9 +114,11 @@ func ApplyAll(doc model.Document, conf rules.Config, fromASS bool, outSb *string
 
 		if len(rulesApplied) > 0 && outSb != nil {
 			//Print cue index, original text and transformed text
-			fmt.Fprintf(outSb, "| %d | %s | %s | %s |\n",
+
+			fmt.Fprintf(outSb, "| %d | %-30s | %-30s | %s |\n",
 				cue.Index,
 				strings.ReplaceAll(cue.Lines, "\n", " \\n "),
+
 				strings.ReplaceAll(newCue.Lines, "\n", " \\n "),
 				strings.Join(rulesApplied, ", "))
 		}

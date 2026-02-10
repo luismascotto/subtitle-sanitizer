@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func Test_removeUppercaseColonWords(t *testing.T) {
@@ -315,6 +316,42 @@ func Test_removeBetweenDelimitersAcrossLines(t *testing.T) {
 			got := strings.TrimSpace(re.ReplaceAllString(tt.s, ""))
 			if got != tt.want {
 				t.Errorf("removeBetweenDelimiters() = [%v], want [%v]", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_normalizeRepeatedSingleDelimiters(t *testing.T) {
+	tests := []struct {
+		name string
+		sep  string
+		s    string
+		want string
+	}{
+		{
+			name: "normalize repeated single delimiters rune",
+			sep:  "♪",
+			s:    "♪♪ text ♪♪",
+			want: "♪ text ♪",
+		}, {
+			name: "normalize repeated single delimiters string/char",
+			sep:  "*",
+			s:    "** text **",
+			want: "* text *",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			left := fmt.Sprintf("%s", tt.sep)
+			right := left
+			//	t.Logf("left: [%v]=%d, right: [%v]=%d", left, utf8.RuneCountInString(left), right, utf8.RuneCountInString(right))
+			if utf8.RuneCountInString(left) == 1 && left == right {
+				got := strings.ReplaceAll(tt.s, left+left, left)
+				if got != tt.want {
+					t.Errorf("normalizeRepeatedSingleDelimiters() = [%v], want [%v]", got, tt.want)
+				}
+			} else {
+				t.Errorf("normalizeRepeatedSingleDelimiters() = not single delimiter: [%v], [%v]", left, right)
 			}
 		})
 	}
