@@ -56,24 +56,7 @@ func main() {
 	for _, inputPath := range args.Input {
 
 		// inputPath := args.Input[0]
-		if inputPath == "" {
-			exitWithErr(errors.New("missing input file(s)"))
-		}
-
-		if err := validateInputPath(inputPath); err != nil {
-			exitWithErr(err)
-		}
-
-		file, err := os.Open(inputPath)
-		if err != nil {
-			exitWithErr(fmt.Errorf("open file: %w", err))
-		}
-		defer file.Close()
-
-		data, err := io.ReadAll(file)
-		if err != nil {
-			exitWithErr(fmt.Errorf("read file: %w", err))
-		}
+		data := ReadFileContent(inputPath)
 
 		ext := strings.ToLower(filepath.Ext(inputPath))
 		var doc *model.Document
@@ -110,6 +93,28 @@ func main() {
 		ApplyTransformations(inputPath, retModelCheck, result, fromASS)
 
 	}
+}
+
+func ReadFileContent(inputPath string) []byte {
+	if inputPath == "" {
+		exitWithErr(errors.New("missing input file(s)"))
+	}
+
+	if err := validateInputPath(inputPath); err != nil {
+		exitWithErr(err)
+	}
+
+	file, err := os.Open(inputPath)
+	if err != nil {
+		exitWithErr(fmt.Errorf("open file: %w", err))
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		exitWithErr(fmt.Errorf("read file: %w", err))
+	}
+	return data
 }
 
 func ApplyTransformations(inputPath string, retModelCheck model.UIModel, result model.Document, fromASS bool) {
