@@ -29,10 +29,16 @@ func Test_removeUppercaseColonWords(t *testing.T) {
 			name: "remove uppercase words, but keep the rest (Upper with colon)",
 			s:    "WORLD: HELLO",
 			want: "HELLO",
-		}, {
+		},
+		{
 			name: "remove uppercase word, empty line",
-			s:    "WORLD:",
+			s:    "WORLD 2:",
 			want: "",
+		},
+		{
+			name: "remove uppercase word, empty line",
+			s:    "GUARD 2: Hey!",
+			want: "Hey!",
 		},
 	}
 	for _, tt := range tests {

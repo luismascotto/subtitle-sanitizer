@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -30,27 +29,25 @@ func main() {
 	arg.MustParse(&args)
 
 	conf := rules.LoadDefaultOrEmpty()
-	// Current default built-in: remove uppercase words (2+ chars)
-	conf.RemoveUppercaseColonWords = true
-	conf.RemoveBetweenDelimiters = []rules.Delimiter{
-		{Left: "(", Right: ")"},
-		{Left: "[", Right: "]"},
-		{Left: "{", Right: "}"},
-		//{Left: "?", Right: "?"},
-		//{Left: "<", Right: ">"},
-		{Left: "¶", Right: "¶"},
-		{Left: "♪", Right: "♪"},
-		{Left: "♫", Right: "♫"},
-		{Left: "♬", Right: "♬"},
-		{Left: "♭", Right: "♭"},
-		{Left: "*", Right: "*"},
+	if !conf.LoadedFromFile {
+		conf.RemoveUppercaseColonWords = true
+		conf.RemoveSingleLineColon = true
+		conf.RemoveBetweenDelimiters = []rules.Delimiter{
+			{Left: "(", Right: ")"},
+			{Left: "[", Right: "]"},
+			{Left: "{", Right: "}"},
+			{Left: "*", Right: "*"},
+		}
+		conf.RemoveLineIfContains = " music *"
 	}
-	conf.RemoveLineIfContains = " music *"
 
-	json, err := json.Marshal(conf)
-	//json, err := colorjson.Marshal(conf)
+	json, err := rules.MarshalIndentCompact(conf, "", "  ", 50)
 	if err != nil {
+
 		exitWithErr(fmt.Errorf("marshal rules: %w", err))
+	}
+	if !conf.LoadedFromFile {
+		_ = conf.SaveToBackupFile(json)
 	}
 
 	for _, inputPath := range args.Input {

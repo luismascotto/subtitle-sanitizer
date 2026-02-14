@@ -14,7 +14,7 @@ import (
 var (
 	// reBr                  = regexp.MustCompile(`<br />`)
 	reSpaces              = regexp.MustCompile(`\s{2,}`)
-	reUppercaseColonWords = regexp.MustCompile(`\b[A-Z]{2,}\s*:[ \t]*`)
+	reUppercaseColonWords = regexp.MustCompile(`\b[A-Z]{2,}\s*[0-9]{0,2}:[ \t]*`)
 )
 
 // ApplyAll runs all enabled transformations based on rules.
