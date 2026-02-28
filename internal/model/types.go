@@ -10,5 +10,15 @@ type Cue struct {
 }
 
 type Document struct {
-	Cues []*Cue
+	Format SubtitleFormat
+	Header string
+	Cues   []*Cue
 }
+
+type SubtitleFormat int
+
+const (
+	SubtitleFormatUnknown SubtitleFormat = iota
+	SubtitleFormatSRT
+	SubtitleFormatASS
+)

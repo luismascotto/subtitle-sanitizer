@@ -31,13 +31,18 @@ func Test_removeUppercaseColonWords(t *testing.T) {
 			want: "HELLO",
 		},
 		{
-			name: "remove uppercase word, empty line",
+			name: "remove uppercase words, empty line",
 			s:    "WORLD 2:",
 			want: "",
 		},
 		{
-			name: "remove uppercase word, empty line",
+			name: "remove uppercase words with number, text after",
 			s:    "GUARD 2: Hey!",
+			want: "Hey!",
+		},
+		{
+			name: "remove uppercase words extended, text after",
+			s:    "GUARD AT BOOTH: Hey!",
 			want: "Hey!",
 		},
 	}

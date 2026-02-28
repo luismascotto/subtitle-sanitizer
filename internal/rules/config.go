@@ -12,11 +12,12 @@ import (
 // RemoveBetweenDelimiters: remove text between delimiters. eg: (tyres screeching), [bird chirping]
 // RemoveLineIfContains: remove line if it contains the specified text. Used when some subtitles don't follow common rules or patterns. eg: "tense music * (should be [tense music])"
 type Config struct {
-	LoadedFromFile            bool        `json:"loadedFromFile"`
-	RemoveUppercaseColonWords bool        `json:"removeUppercaseColonWords"`
-	RemoveSingleLineColon     bool        `json:"removeSingleLineColon"`
-	RemoveBetweenDelimiters   []Delimiter `json:"removeBetweenDelimiters"`
-	RemoveLineIfContains      string      `json:"removeLineIfContains"`
+	LoadedFromFile                   bool        `json:"loadedFromFile"`
+	RemoveTextBeforeColonIfUppercase bool        `json:"removeTextBeforeColonIfUppercase"`
+	RemoveTextBeforeColon            bool        `json:"removeTextBeforeColon"`
+	RemoveSingleLineColon            bool        `json:"removeSingleLineColon"`
+	RemoveBetweenDelimiters          []Delimiter `json:"removeBetweenDelimiters"`
+	RemoveLineIfContains             string      `json:"removeLineIfContains"`
 }
 
 type Delimiter struct {

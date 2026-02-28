@@ -32,7 +32,11 @@ func ParseSRT(data []byte, ignoreMinorErrors bool) (*model.Document, error) {
 	for i := range cues {
 		cues[i].Index = i + 1
 	}
-	return &model.Document{Cues: cues}, nil
+	return &model.Document{
+		Format: model.SubtitleFormatSRT,
+		//Header: header,
+		Cues: cues,
+	}, nil
 }
 
 func splitSRTBlocks(data []byte) [][]string {

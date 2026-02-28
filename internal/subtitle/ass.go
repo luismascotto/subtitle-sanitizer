@@ -45,7 +45,11 @@ func ParseASS(data []byte) (*model.Document, error) {
 	for i := range cues {
 		cues[i].Index = i + 1
 	}
-	return &model.Document{Cues: cues}, nil
+	return &model.Document{
+		Format: model.SubtitleFormatASS,
+		//Header: header,
+		Cues: cues,
+	}, nil
 }
 
 func splitASSBlocks(data []byte) [][]string {

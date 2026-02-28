@@ -13,14 +13,18 @@ import (
 
 var (
 	// reBr                  = regexp.MustCompile(`<br />`)
-	reSpaces              = regexp.MustCompile(`\s{2,}`)
-	reUppercaseColonWords = regexp.MustCompile(`\b[A-Z]{2,}\s*[0-9]{0,2}:[ \t]*`)
+	reSpaces = regexp.MustCompile(`\s{2,}`)
+	//reUppercaseColonWords    = regexp.MustCompile(`\b[A-Z]{1,}\s*[A-Z0-9]{1,}:[ \t]*`)
+	reTextWithColon          = regexp.MustCompile(`^[^:]+:[ \t]*`)
+	reUppercaseTextWithColon = regexp.MustCompile(`^[^:a-z]+:[ \t]*`)
 )
 
 // ApplyAll runs all enabled transformations based on rules.
-func ApplyAll(doc model.Document, conf rules.Config, fromASS bool, outSb *strings.Builder) model.Document {
+func ApplyAll(doc model.Document, conf rules.Config, outSb *strings.Builder) model.Document {
 	out := model.Document{
-		Cues: []*model.Cue{},
+		Format: doc.Format,
+		Header: doc.Header,
+		Cues:   []*model.Cue{},
 	}
 	for _, cue := range doc.Cues {
 		rulesApplied := []string{}
@@ -35,7 +39,7 @@ func ApplyAll(doc model.Document, conf rules.Config, fromASS bool, outSb *string
 
 		text := cue.Lines
 
-		if fromASS {
+		if doc.Format == model.SubtitleFormatASS {
 			text = convertASSFormattingToSRT(text)
 		}
 
@@ -53,10 +57,15 @@ func ApplyAll(doc model.Document, conf rules.Config, fromASS bool, outSb *string
 			}
 		}
 
-		if conf.RemoveUppercaseColonWords {
-			ruleTriggered, text = removeUppercaseColonWords(text)
+		if conf.RemoveTextBeforeColonIfUppercase {
+			ruleTriggered, text = removeUppercaseTextWithColon(text)
 			if ruleTriggered {
-				rulesApplied = append(rulesApplied, "removeUpperColonWords")
+				rulesApplied = append(rulesApplied, "TEXT:")
+			}
+		} else if conf.RemoveTextBeforeColon {
+			ruleTriggered, text = removeTextBeforeColon(text)
+			if ruleTriggered {
+				rulesApplied = append(rulesApplied, "text:")
 			}
 		}
 
@@ -133,8 +142,8 @@ func ApplyAll(doc model.Document, conf rules.Config, fromASS bool, outSb *string
 func removeUppercaseColonWords(s string) (bool, string) {
 	// Remove words of 2+ uppercase letters.
 	// Use word boundaries to avoid partial matches. Keep punctuation spacing tidy later.
-	if len(s) > 0 && reUppercaseColonWords.MatchString(s) {
-		return true, reUppercaseColonWords.ReplaceAllString(s, "")
+	if len(s) > 0 && reUppercaseTextWithColon.MatchString(s) {
+		return true, reUppercaseTextWithColon.ReplaceAllString(s, "")
 	}
 	return false, s
 }
@@ -149,8 +158,8 @@ func removeSingleLineColon(s string) (bool, string) {
 	removed := false
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasSuffix(trimmed, ":") {
-			withoutColon := strings.TrimSpace(strings.TrimSuffix(trimmed, ":"))
+		if before, ok := strings.CutSuffix(trimmed, ":"); ok && before != "" {
+			withoutColon := strings.TrimSpace(before)
 			// Count words using whitespace splitting
 			words := strings.Fields(withoutColon)
 			if len(words) > 0 && len(words) <= 3 {
@@ -196,4 +205,20 @@ func convertASSFormattingToSRT(s string) string {
 	ignore := regexp.MustCompile(`{\\[^bius][^}]*}`)
 	formatted = ignore.ReplaceAllString(formatted, "")
 	return formatted
+}
+
+func removeUppercaseTextWithColon(s string) (bool, string) {
+	// Remove all text before the colon and the colon itself
+	if len(s) == 0 {
+		return false, s
+	}
+	return reUppercaseTextWithColon.MatchString(s), reUppercaseTextWithColon.ReplaceAllString(s, "")
+}
+
+func removeTextBeforeColon(s string) (bool, string) {
+	// Remove all text before the colon and the colon itself
+	if len(s) == 0 {
+		return false, s
+	}
+	return reTextWithColon.MatchString(s), reTextWithColon.ReplaceAllString(s, "")
 }

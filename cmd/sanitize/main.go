@@ -30,8 +30,8 @@ func main() {
 
 	conf := rules.LoadDefaultOrEmpty()
 	if !conf.LoadedFromFile {
-		conf.RemoveUppercaseColonWords = true
-		conf.RemoveSingleLineColon = true
+		conf.RemoveTextBeforeColonIfUppercase = true
+		conf.RemoveTextBeforeColon = true
 		conf.RemoveBetweenDelimiters = []rules.Delimiter{
 			{Left: "(", Right: ")"},
 			{Left: "[", Right: "]"},
@@ -56,27 +56,21 @@ func main() {
 		data := ReadFileContent(inputPath)
 
 		ext := strings.ToLower(filepath.Ext(inputPath))
-		var doc *model.Document
-		var fromASS bool
+		format := model.SubtitleFormatUnknown
 		switch ext {
 		case ".srt":
-			d, perr := subtitle.ParseSRT(data, args.IgnoreErrors)
-			if perr != nil {
-				exitWithErr(perr)
-			}
-			doc = d
+			format = model.SubtitleFormatSRT
 		case ".ass":
-			fromASS = true
-			d, perr := subtitle.ParseASS(data)
-			if perr != nil {
-				exitWithErr(perr)
-			}
-			doc = d
+			format = model.SubtitleFormatASS
 		default:
 			exitWithErr(fmt.Errorf("unsupported extension: %s", ext))
 		}
+		doc, err := subtitle.Parse(data, format)
+		if err != nil {
+			exitWithErr(err)
+		}
 
-		result, retModel := RenderTransformations(json, inputPath, doc, conf, fromASS)
+		result, retModel := RenderTransformations(json, inputPath, doc, conf)
 		retModelCheck, ok := retModel.(model.UIModel)
 		if !ok {
 			exitWithErr(errors.New("retModel is not of type UIModel"))
@@ -87,8 +81,7 @@ func main() {
 		if retModelCheck.Skip {
 			continue
 		}
-		ApplyTransformations(inputPath, retModelCheck, result, fromASS)
-
+		ApplyTransformations(inputPath, retModelCheck, result)
 	}
 }
 
@@ -114,7 +107,7 @@ func ReadFileContent(inputPath string) []byte {
 	return data
 }
 
-func ApplyTransformations(inputPath string, retModelCheck model.UIModel, result model.Document, fromASS bool) {
+func ApplyTransformations(inputPath string, retModelCheck model.UIModel, result model.Document) {
 	outPath := deriveOutputPath(inputPath, retModelCheck.Overwrite)
 
 	outData := subtitle.FormatSRT(result) // Always save as .srt
@@ -122,12 +115,12 @@ func ApplyTransformations(inputPath string, retModelCheck model.UIModel, result 
 		exitWithErr(fmt.Errorf("write output: %w", err))
 	}
 
-	if fromASS && retModelCheck.Overwrite {
+	if result.Format == model.SubtitleFormatASS && retModelCheck.Overwrite {
 		_ = os.Remove(inputPath)
 	}
 }
 
-func RenderTransformations(json []byte, inputPath string, doc *model.Document, conf rules.Config, fromASS bool) (model.Document, tea.Model) {
+func RenderTransformations(json []byte, inputPath string, doc *model.Document, conf rules.Config) (model.Document, tea.Model) {
 	sbContent := strings.Builder{}
 	sbContent.WriteString("\n\n# Subtitle Sanitizer\n\n## Rules\n```json\n")
 	sbContent.WriteString(string(json))
@@ -136,7 +129,7 @@ func RenderTransformations(json []byte, inputPath string, doc *model.Document, c
 	sbContent.WriteString("## " + filepath.Base(inputPath) + "\n")
 
 	sbTransformations := strings.Builder{}
-	result := transform.ApplyAll(*doc, conf, fromASS, &sbTransformations)
+	result := transform.ApplyAll(*doc, conf, &sbTransformations)
 
 	sbContent.WriteString("## Transformations\n")
 	if sbTransformations.Len() > 0 {
