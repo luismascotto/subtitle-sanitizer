@@ -212,7 +212,17 @@ func removeUppercaseTextWithColon(s string) (bool, string) {
 	if len(s) == 0 {
 		return false, s
 	}
-	return reUppercaseTextWithColon.MatchString(s), reUppercaseTextWithColon.ReplaceAllString(s, "")
+	lines := strings.Split(s, "\n")
+	out := make([]string, 0, len(lines))
+	removed := false
+	for _, line := range lines {
+		if reUppercaseTextWithColon.MatchString(line) {
+			removed = true
+		}
+		line = reUppercaseTextWithColon.ReplaceAllString(line, "")
+		out = append(out, line)
+	}
+	return removed, strings.Join(out, "\n")
 }
 
 func removeTextBeforeColon(s string) (bool, string) {
@@ -220,5 +230,15 @@ func removeTextBeforeColon(s string) (bool, string) {
 	if len(s) == 0 {
 		return false, s
 	}
-	return reTextWithColon.MatchString(s), reTextWithColon.ReplaceAllString(s, "")
+	lines := strings.Split(s, "\n")
+	out := make([]string, 0, len(lines))
+	removed := false
+	for _, line := range lines {
+		if reTextWithColon.MatchString(line) {
+			removed = true
+		}
+		line = reTextWithColon.ReplaceAllString(line, "")
+		out = append(out, line)
+	}
+	return removed, strings.Join(out, "\n")
 }
