@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/alexflint/go-arg"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/luismascotto/subtitle-sanitizer/internal/mkv"
 	"github.com/luismascotto/subtitle-sanitizer/internal/model"
 	"github.com/luismascotto/subtitle-sanitizer/internal/rules"
 	"github.com/luismascotto/subtitle-sanitizer/internal/subtitle"
@@ -21,12 +23,23 @@ import (
 
 func main() {
 	var args struct {
-		Input []string `arg:"positional"`
-		// SrtBackup    bool     `arg:"-b,--srt-backup" help:"backup original srt files"`
-		// SrtOverwrite bool     `arg:"-o,--srt-overwrite" help:"overwrite original srt files"`
-		IgnoreErrors bool `arg:"-i,--ignore-errors" help:"ignore minor errors" default:"true"`
+		Input        []string `arg:"positional"`
+		IgnoreErrors bool     `arg:"-i,--ignore-errors" help:"ignore minor errors" default:"true"`
+		MkvExtract   bool     `arg:"-m,--mkv-extract" help:"extract subtitles from mkv files" default:"false"`
 	}
 	arg.MustParse(&args)
+
+	mkvDependenciesError := mkv.VerifyDependencies()
+
+	if len(args.Input) == 0 {
+		exitWithErr(errors.New("no input files provided"))
+	}
+	for _, inputPath := range args.Input {
+		ext := strings.ToLower(filepath.Ext(inputPath))
+		if ext == ".mkv" && mkvDependenciesError != nil {
+			exitWithErr(mkvDependenciesError)
+		}
+	}
 
 	conf := rules.LoadDefaultOrEmpty()
 	if !conf.LoadedFromFile {
@@ -43,19 +56,64 @@ func main() {
 
 	json, err := rules.MarshalIndentCompact(conf, "", "  ", 50)
 	if err != nil {
-
 		exitWithErr(fmt.Errorf("marshal rules: %w", err))
 	}
 	if !conf.LoadedFromFile {
 		_ = conf.SaveToBackupFile(json)
 	}
+	if args.MkvExtract {
+		batchModel := model.NewBatchModel(args.Input)
+		_, err := tea.NewProgram(batchModel).Run()
+		if err != nil {
+			exitWithErr(fmt.Errorf("run batch program: %w", err))
+		}
+		return
+	}
 
 	for _, inputPath := range args.Input {
-
-		// inputPath := args.Input[0]
-		data := ReadFileContent(inputPath)
+		var data []byte
+		var err error
 
 		ext := strings.ToLower(filepath.Ext(inputPath))
+		if ext == "" {
+			exitWithErr(fmt.Errorf("extension is empty"))
+		}
+
+		if ext == ".mkv" {
+			loader := tea.NewProgram(model.NewLoaderModel())
+
+			go func() {
+				loader.Send(model.LoaderMsg{Message: "Extracting subtitles from MKV file...", Quit: false})
+				inputPath, data, err = mkv.Extract(inputPath)
+				if err != nil {
+					loader.Send(model.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: false})
+					time.Sleep(1 * time.Second)
+					loader.Send(model.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: true})
+				} else {
+					loader.Send(model.LoaderMsg{Message: "Subtitles extracted successfully", Quit: true})
+				}
+			}()
+
+			if _, err := loader.Run(); err != nil {
+				exitWithErr(fmt.Errorf("run loader program: %w", err))
+			}
+
+			if err != nil {
+				exitWithErr(fmt.Errorf("extract mkv subtitles: %w", err))
+			}
+
+			ext = strings.ToLower(filepath.Ext(inputPath))
+			if ext == "" {
+				exitWithErr(fmt.Errorf("extension is empty"))
+			}
+		} else {
+			data = ReadFileContent(inputPath)
+		}
+
+		if len(data) == 0 {
+			exitWithErr(fmt.Errorf("data is empty"))
+		}
+
 		format := model.SubtitleFormatUnknown
 		switch ext {
 		case ".srt":
@@ -81,7 +139,13 @@ func main() {
 		if retModelCheck.Skip {
 			continue
 		}
-		ApplyTransformations(inputPath, retModelCheck, result)
+		var final *model.Document
+		if retModelCheck.Apply {
+			final = &result
+		} else {
+			final = doc
+		}
+		ApplyTransformations(inputPath, retModelCheck, final)
 	}
 }
 
@@ -107,10 +171,13 @@ func ReadFileContent(inputPath string) []byte {
 	return data
 }
 
-func ApplyTransformations(inputPath string, retModelCheck model.UIModel, result model.Document) {
+func ApplyTransformations(inputPath string, retModelCheck model.UIModel, result *model.Document) {
+	if result.Format == model.SubtitleFormatSRT && retModelCheck.Overwrite && !retModelCheck.Apply {
+		return
+	}
 	outPath := deriveOutputPath(inputPath, retModelCheck.Overwrite)
 
-	outData := subtitle.FormatSRT(result) // Always save as .srt
+	outData := subtitle.FormatSRT(*result) // Always save as .srt
 	if err := os.WriteFile(outPath, outData, 0644); err != nil {
 		exitWithErr(fmt.Errorf("write output: %w", err))
 	}
@@ -140,7 +207,7 @@ func RenderTransformations(json []byte, inputPath string, doc *model.Document, c
 		sbContent.WriteString("Nothing to remove...\n")
 	}
 
-	vpModel, err := model.NewModel(sbContent.String())
+	vpModel, err := model.NewViewPortModel(sbContent.String())
 	if err != nil {
 		exitWithErr(fmt.Errorf("new model: %w", err))
 	}
