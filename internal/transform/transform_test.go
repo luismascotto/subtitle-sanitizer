@@ -50,6 +50,11 @@ func Test_removeUppercaseColonWords(t *testing.T) {
 			s:    "GUARD, ON PHONE: Hey!",
 			want: "Hey!",
 		},
+		{
+			name: "dont remove hours",
+			s:    "7:00 p.m.",
+			want: "7:00 p.m.",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -16,7 +16,7 @@ var (
 	reSpaces = regexp.MustCompile(`\s{2,}`)
 	//reUppercaseColonWords    = regexp.MustCompile(`\b[A-Z]{1,}\s*[A-Z0-9]{1,}:[ \t]*`)
 	reTextWithColon          = regexp.MustCompile(`^[^:]+:[ \t]*`)
-	reUppercaseTextWithColon = regexp.MustCompile(`^[^:a-z]+:[ \t]*`)
+	reUppercaseTextWithColon = regexp.MustCompile(`^[^:a-z]*[A-Z][^:a-z]*:[ \t]*`)
 )
 
 // ApplyAll runs all enabled transformations based on rules.
