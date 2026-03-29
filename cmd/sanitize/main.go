@@ -186,14 +186,13 @@ func RenderTransformations(json []byte, inputPath string, doc *model.Document, c
 
 	sbContent.WriteString("## " + filepath.Base(inputPath) + "\n")
 
-	sbTransformations := strings.Builder{}
-	result := transform.ApplyAll(*doc, conf, &sbTransformations)
+	out, changes := transform.ApplyAll(*doc, conf)
 
 	sbContent.WriteString("## Transformations\n")
-	if sbTransformations.Len() > 0 {
+	if len(changes) > 0 {
 		sbContent.WriteString("| Pos# | Original | Transformed/removed/empty | Rules |\n")
 		sbContent.WriteString("| --- | --- | --- | --- |\n")
-		sbContent.WriteString(sbTransformations.String())
+		sbContent.WriteString(transform.MarkdownRows(changes))
 	} else {
 		sbContent.WriteString("Nothing to remove...\n")
 	}
@@ -207,7 +206,7 @@ func RenderTransformations(json []byte, inputPath string, doc *model.Document, c
 	if err != nil {
 		exitWithErr(fmt.Errorf("run tea program: %w", err))
 	}
-	return result, retModel
+	return out, retModel
 }
 
 func validateInputPath(p string) error {

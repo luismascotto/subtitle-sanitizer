@@ -19,13 +19,22 @@ var (
 	reUppercaseTextWithColon = regexp.MustCompile(`^[^:a-z]*[A-Z][^:a-z]*:[ \t]*`)
 )
 
+// CueChange records one cue that had at least one rule applied (including full-line removal).
+type CueChange struct {
+	CueIndex    int      `json:"cueIndex"`
+	Original    string   `json:"original"`
+	Transformed string   `json:"transformed"`
+	Rules       []string `json:"rules"`
+}
+
 // ApplyAll runs all enabled transformations based on rules.
-func ApplyAll(doc model.Document, conf rules.Config, outSb *strings.Builder) model.Document {
+func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChange) {
 	out := model.Document{
 		Format: doc.Format,
 		Header: doc.Header,
 		Cues:   []*model.Cue{},
 	}
+	var changes []CueChange
 	for _, cue := range doc.Cues {
 		rulesApplied := []string{}
 		ruleTriggered := false
@@ -44,9 +53,12 @@ func ApplyAll(doc model.Document, conf rules.Config, outSb *strings.Builder) mod
 		}
 
 		if conf.RemoveLineIfContains != "" && strings.Contains(text, conf.RemoveLineIfContains) {
-			ruleTriggered = true
-			rulesApplied = append(rulesApplied, "removeIfContains")
-			// Skip processing this line
+			changes = append(changes, CueChange{
+				CueIndex:    cue.Index,
+				Original:    cue.Lines,
+				Transformed: "",
+				Rules:       []string{"removeIfContains"},
+			})
 			continue
 		}
 
@@ -121,22 +133,37 @@ func ApplyAll(doc model.Document, conf rules.Config, outSb *strings.Builder) mod
 			newCue.Lines = strings.TrimSpace(collapseSpaces(strings.TrimSuffix(strings.TrimPrefix(newCue.Lines, "\n"), "\n")))
 		}
 
-		if len(rulesApplied) > 0 && outSb != nil {
-			//Print cue index, original text and transformed text
-
-			fmt.Fprintf(outSb, "| %d | %-30s | %-30s | %s |\n",
-				cue.Index,
-				strings.ReplaceAll(cue.Lines, "\n", " \\n "),
-
-				strings.ReplaceAll(newCue.Lines, "\n", " \\n "),
-				strings.Join(rulesApplied, ", "))
+		if len(rulesApplied) > 0 {
+			rulesCopy := append([]string(nil), rulesApplied...)
+			changes = append(changes, CueChange{
+				CueIndex:    cue.Index,
+				Original:    cue.Lines,
+				Transformed: newCue.Lines,
+				Rules:       rulesCopy,
+			})
 		}
 
 		out.Cues = append(out.Cues, newCue)
 	}
 
 	// Indexing is re-assigned during SRT formatting
-	return out
+	return out, changes
+}
+
+// MarkdownRows renders cue changes as markdown table body rows (no header).
+func MarkdownRows(entries []CueChange) string {
+	if len(entries) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, e := range entries {
+		fmt.Fprintf(&sb, "| %d | %-30s | %-30s | %s |\n",
+			e.CueIndex,
+			strings.ReplaceAll(e.Original, "\n", " \\n "),
+			strings.ReplaceAll(e.Transformed, "\n", " \\n "),
+			strings.Join(e.Rules, ", "))
+	}
+	return sb.String()
 }
 
 func removeUppercaseColonWords(s string) (bool, string) {

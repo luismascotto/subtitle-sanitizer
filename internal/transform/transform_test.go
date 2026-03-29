@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/luismascotto/subtitle-sanitizer/internal/model"
+	"github.com/luismascotto/subtitle-sanitizer/internal/rules"
 )
 
 func Test_removeUppercaseColonWords(t *testing.T) {
@@ -339,6 +342,45 @@ func Test_removeBetweenDelimitersAcrossLines(t *testing.T) {
 				t.Errorf("removeBetweenDelimiters() = [%v], want [%v]", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestApplyAll_removeLineIfContains_logsChange(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues: []*model.Cue{
+			{Index: 1, Lines: "foo music * bar"},
+		},
+	}
+	conf := rules.Config{RemoveLineIfContains: " music *"}
+	out, ch := ApplyAll(doc, conf)
+	if len(out.Cues) != 0 {
+		t.Fatalf("cue should be dropped, got %d cues", len(out.Cues))
+	}
+	if len(ch) != 1 || ch[0].Rules[0] != "removeIfContains" || ch[0].Original != "foo music * bar" {
+		t.Fatalf("unexpected changes: %+v", ch)
+	}
+}
+
+func TestApplyAll_parentheses_emitsChange(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues: []*model.Cue{
+			{Index: 1, Lines: "Hello (noise) world"},
+		},
+	}
+	conf := rules.Config{
+		RemoveBetweenDelimiters: []rules.Delimiter{{Left: "(", Right: ")"}},
+	}
+	_, ch := ApplyAll(doc, conf)
+	if len(ch) != 1 {
+		t.Fatalf("want 1 change, got %d: %+v", len(ch), ch)
+	}
+}
+
+func TestMarkdownRows_empty(t *testing.T) {
+	if s := MarkdownRows(nil); s != "" {
+		t.Fatalf("got %q", s)
 	}
 }
 
