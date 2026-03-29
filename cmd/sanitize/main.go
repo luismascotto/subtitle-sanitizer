@@ -29,6 +29,8 @@ func main() {
 	}
 	arg.MustParse(&args)
 
+	normalizePwdPath()
+
 	mkvDependenciesError := mkv.VerifyDependencies()
 
 	if len(args.Input) == 0 {
@@ -270,4 +272,38 @@ func FileExists(path string) bool {
 func exitWithErr(err error) {
 	fmt.Fprintln(os.Stderr, "Error:", err)
 	os.Exit(1)
+}
+
+func normalizePwdPath() {
+	wd, err := os.Getwd()
+	if err != nil {
+		exitWithErr(fmt.Errorf("get working directory: %w", err))
+	}
+	//fmt.Printf("Current working directory: %s\n", wd)
+
+	// 1. Get the absolute path of the running executable.
+	executablePath, err := os.Executable()
+	if err != nil {
+		exitWithErr(fmt.Errorf("get executable path: %w", err))
+	}
+
+	// 2. Extract the directory part from the full path.
+	// filepath.Dir is used for cross-platform compatibility.
+	executableDir := filepath.Dir(executablePath)
+	//fmt.Printf("Executable directory: %s\n", executableDir)
+
+	if wd == executableDir {
+		return
+	}
+
+	// 3. Change the current working directory to the executable's directory.
+	if err := os.Chdir(executableDir); err != nil {
+		exitWithErr(fmt.Errorf("change working directory: %w", err))
+	}
+
+	// newWd, err := os.Getwd()
+	// if err != nil {
+	// 	exitWithErr(fmt.Errorf("get working directory: %w", err))
+	// }
+	// fmt.Printf("New current working directory: %s\n", newWd)
 }
