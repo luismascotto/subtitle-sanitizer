@@ -44,17 +44,6 @@ func main() {
 	}
 
 	conf := rules.LoadDefaultOrEmpty()
-	if !conf.LoadedFromFile {
-		conf.RemoveTextBeforeColonIfUppercase = true
-		conf.RemoveTextBeforeColon = true
-		conf.RemoveBetweenDelimiters = []rules.Delimiter{
-			{Left: "(", Right: ")"},
-			{Left: "[", Right: "]"},
-			{Left: "{", Right: "}"},
-			{Left: "*", Right: "*"},
-		}
-		conf.RemoveLineIfContains = " music *"
-	}
 
 	json, err := rules.MarshalIndentCompact(conf, "", "  ", 50)
 	if err != nil {

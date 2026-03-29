@@ -25,20 +25,47 @@ type Delimiter struct {
 	Right string `json:"right"`
 }
 
-// LoadDefaultOrEmpty returns default config or loads from local config.json file
+// DefaultConfig returns built-in rule defaults when no config file is used.
+func DefaultConfig() Config {
+	return Config{
+		LoadedFromFile:                   false,
+		RemoveTextBeforeColonIfUppercase: true,
+		RemoveTextBeforeColon:            true,
+		RemoveSingleLineColon:            false,
+		RemoveBetweenDelimiters: []Delimiter{
+			{Left: "(", Right: ")"},
+			{Left: "[", Right: "]"},
+			{Left: "{", Right: "}"},
+			{Left: "*", Right: "*"},
+		},
+		RemoveLineIfContains: " music *",
+	}
+}
+
+// ParseConfig unmarshals JSON rule config. On success, LoadedFromFile is set true
+// (caller supplied explicit JSON; any loadedFromFile field in the payload is ignored).
+func ParseConfig(data []byte) (Config, error) {
+	var c Config
+	if err := json.Unmarshal(data, &c); err != nil {
+		return Config{}, err
+	}
+	c.LoadedFromFile = true
+	return c, nil
+}
+
+// LoadDefaultOrEmpty loads config.json from the current working directory, or returns
+// DefaultConfig after logging read/unmarshal errors to stderr.
 func LoadDefaultOrEmpty() Config {
 	data, err := os.ReadFile("config.json")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error reading config:", err)
-		return Config{}
+		return DefaultConfig()
 	}
-	var conf Config
-	err = json.Unmarshal(data, &conf)
+	conf, err := ParseConfig(data)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error unmarshalling config:", err)
-		return Config{}
+		return DefaultConfig()
 	}
-	conf.LoadedFromFile = true
 	return conf
 }
 
