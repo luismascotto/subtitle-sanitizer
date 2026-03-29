@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/progress"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/luismascotto/subtitle-sanitizer/internal/mkv"
 )
 
@@ -29,7 +29,7 @@ func NewViewPortModel(content string) (*UIModel, error) {
 
 	const width = 100
 
-	vp := viewport.New(width, 32)
+	vp := viewport.New(viewport.WithWidth(width), viewport.WithHeight(32))
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).
@@ -75,11 +75,10 @@ func (m UIModel) Init() tea.Cmd {
 func (m UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
-	case tea.MouseMsg:
-		// Pass mouse events to the viewport component
+	case tea.MouseWheelMsg:
 		m.viewport, cmd = m.viewport.Update(msg)
 		return m, cmd
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 
 		case "q", "x", "ctrl+c":
@@ -106,8 +105,11 @@ func (m UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m UIModel) View() string {
-	return m.viewport.View() + helpView("\n  ↑/↓: Navigate • q/x: Quit • esc/n: Skip • enter/a: Apply • o/w: Overwrite • s: srt\n")
+func (m UIModel) View() tea.View {
+	content := m.viewport.View() + helpView("\n  ↑/↓: Navigate • q/x: Quit • esc/n: Skip • enter/a: Apply • o/w: Overwrite • s: srt\n")
+	v := tea.NewView(content)
+	v.MouseMode = tea.MouseModeAllMotion
+	return v
 }
 
 // type colorTheme struct {
@@ -165,11 +167,13 @@ func (m LoaderMsg) String() string {
 }
 
 func (m LoaderModel) Init() tea.Cmd {
-	return m.spinner.Tick
+	return func() tea.Msg {
+		return m.spinner.Tick()
+	}
 }
 func (m LoaderModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+c", "q", "esc":
 			return m, tea.Quit
@@ -191,20 +195,20 @@ func (m LoaderModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 }
-func (m LoaderModel) View() string {
-
+func (m LoaderModel) View() tea.View {
 	var s string
 	s += fmt.Sprintf("\n %s%s%s\n\n", m.spinner.View(), " ", textStyle(m.Message))
 	s += helpView("q: exit\n")
-	return s
+	return tea.NewView(s)
 }
 
 func NewLoaderModel() *LoaderModel {
 	m := &LoaderModel{}
 	m.index = 0
-	m.spinner = spinner.New()
-	m.spinner.Style = spinnerStyle
-	m.spinner.Spinner = spinners[m.index]
+	m.spinner = spinner.New(
+		spinner.WithStyle(spinnerStyle),
+		spinner.WithSpinner(spinners[m.index]),
+	)
 	return m
 }
 func (m *LoaderModel) NextSpinner() {
@@ -237,8 +241,7 @@ func NewBatchModel(files []string) BatchModel {
 		progress.WithWidth(40),
 		progress.WithoutPercentage(),
 	)
-	s := spinner.New()
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
+	s := spinner.New(spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("63"))))
 	return BatchModel{
 		files:    files,
 		spinner:  s,
@@ -247,14 +250,19 @@ func NewBatchModel(files []string) BatchModel {
 }
 
 func (m BatchModel) Init() tea.Cmd {
-	return tea.Batch(extractSubtitles(m.files[m.index]), m.spinner.Tick)
+	return tea.Batch(
+		extractSubtitles(m.files[m.index]),
+		func() tea.Msg {
+			return m.spinner.Tick()
+		},
+	)
 }
 
 func (m BatchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+c", "esc", "q":
 			return m, tea.Quit
@@ -284,19 +292,19 @@ func (m BatchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
 	case progress.FrameMsg:
-		newModel, cmd := m.progress.Update(msg)
-		m.progress = newModel.(progress.Model)
+		var cmd tea.Cmd
+		m.progress, cmd = m.progress.Update(msg)
 		return m, cmd
 	}
 	return m, nil
 }
 
-func (m BatchModel) View() string {
+func (m BatchModel) View() tea.View {
 	n := len(m.files)
 	w := lipgloss.Width(fmt.Sprintf("%d", n))
 
 	if m.done {
-		return doneStyle.Render(fmt.Sprintf("Done! Extracted subtitles from %d files.\n", n))
+		return tea.NewView(doneStyle.Render(fmt.Sprintf("Done! Extracted subtitles from %d files.\n", n)))
 	}
 
 	fileCount := fmt.Sprintf(" %*d/%*d", w, m.index, w, n)
@@ -311,7 +319,7 @@ func (m BatchModel) View() string {
 	cellsRemaining := max(0, m.width-lipgloss.Width(spin+info+prog+fileCount))
 	gap := strings.Repeat(" ", cellsRemaining)
 
-	return spin + info + gap + prog + fileCount
+	return tea.NewView(spin + info + gap + prog + fileCount)
 }
 
 type extractedSubtitlesMsg string

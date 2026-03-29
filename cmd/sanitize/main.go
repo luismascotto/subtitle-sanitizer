@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/alexflint/go-arg"
-	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/luismascotto/subtitle-sanitizer/internal/mkv"
 	"github.com/luismascotto/subtitle-sanitizer/internal/model"
@@ -212,7 +212,7 @@ func RenderTransformations(json []byte, inputPath string, doc *model.Document, c
 		exitWithErr(fmt.Errorf("new model: %w", err))
 	}
 
-	retModel, err := tea.NewProgram(vpModel, tea.WithMouseAllMotion()).Run()
+	retModel, err := tea.NewProgram(vpModel).Run()
 	if err != nil {
 		exitWithErr(fmt.Errorf("run tea program: %w", err))
 	}
