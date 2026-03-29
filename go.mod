@@ -10,7 +10,6 @@ require (
 	charm.land/lipgloss/v2 v2.0.2
 	github.com/alexflint/go-arg v1.6.1
 	github.com/charmbracelet/glamour v0.10.0
-	github.com/iancoleman/orderedmap v0.3.0
 )
 
 require (

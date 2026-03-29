@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -46,12 +47,13 @@ func main() {
 
 	conf := rules.LoadDefaultOrEmpty()
 
-	json, err := rules.MarshalIndentCompact(conf, "", "  ", 50)
+	rulesDisplay := conf.DescribeEffective()
+	backupJSON, err := json.MarshalIndent(conf, "", "  ")
 	if err != nil {
-		exitWithErr(fmt.Errorf("marshal rules: %w", err))
+		exitWithErr(fmt.Errorf("marshal config backup: %w", err))
 	}
 	if !conf.LoadedFromFile {
-		_ = conf.SaveToBackupFile(json)
+		_ = conf.SaveToBackupFile(backupJSON)
 	}
 	if args.MkvExtract {
 		batchModel := model.NewBatchModel(args.Input)
@@ -120,7 +122,7 @@ func main() {
 			exitWithErr(err)
 		}
 
-		result, retModel := RenderTransformations(json, inputPath, doc, conf)
+		result, retModel := RenderTransformations(rulesDisplay, inputPath, doc, conf)
 		retModelCheck, ok := retModel.(model.UIModel)
 		if !ok {
 			exitWithErr(errors.New("retModel is not of type UIModel"))
@@ -179,10 +181,10 @@ func ApplyTransformations(inputPath string, retModelCheck model.UIModel, result 
 	}
 }
 
-func RenderTransformations(json []byte, inputPath string, doc *model.Document, conf rules.Config) (model.Document, tea.Model) {
+func RenderTransformations(rulesDisplay string, inputPath string, doc *model.Document, conf rules.Config) (model.Document, tea.Model) {
 	sbContent := strings.Builder{}
-	sbContent.WriteString("\n\n# Subtitle Sanitizer\n\n## Rules\n```json\n")
-	sbContent.WriteString(string(json))
+	sbContent.WriteString("\n\n# Subtitle Sanitizer\n\n## Active rules\n\n```\n")
+	sbContent.WriteString(rulesDisplay)
 	sbContent.WriteString("\n```\n\n")
 
 	sbContent.WriteString("## " + filepath.Base(inputPath) + "\n")

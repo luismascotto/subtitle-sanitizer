@@ -3,6 +3,7 @@ package rules
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -53,6 +54,26 @@ func TestParseConfig_invalidJSON(t *testing.T) {
 	_, err := ParseConfig([]byte(`{`))
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestDescribeEffective(t *testing.T) {
+	s := DefaultConfig().DescribeEffective()
+	for _, sub := range []string{
+		"removeTextBeforeColonIfUppercase: true",
+		"source: built-in defaults",
+		`left="("`,
+	} {
+		if !strings.Contains(s, sub) {
+			t.Fatalf("DescribeEffective missing %q in:\n%s", sub, s)
+		}
+	}
+	c := Config{LoadedFromFile: true, RemoveLineIfContains: ""}
+	s2 := c.DescribeEffective()
+	for _, sub := range []string{"source: config.json", "removeLineIfContains: (empty; disabled)"} {
+		if !strings.Contains(s2, sub) {
+			t.Fatalf("DescribeEffective missing %q in:\n%s", sub, s2)
+		}
 	}
 }
 

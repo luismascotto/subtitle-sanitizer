@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // Config captures transformation rules.
@@ -67,6 +68,33 @@ func LoadDefaultOrEmpty() Config {
 		return DefaultConfig()
 	}
 	return conf
+}
+
+// DescribeEffective returns a readable summary of the active rules (for CLI preview).
+func (c Config) DescribeEffective() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "removeTextBeforeColonIfUppercase: %t\n", c.RemoveTextBeforeColonIfUppercase)
+	fmt.Fprintf(&b, "removeTextBeforeColon: %t\n", c.RemoveTextBeforeColon)
+	fmt.Fprintf(&b, "removeSingleLineColon: %t\n", c.RemoveSingleLineColon)
+	b.WriteString("removeBetweenDelimiters:\n")
+	if len(c.RemoveBetweenDelimiters) == 0 {
+		b.WriteString("  (none)\n")
+	} else {
+		for _, d := range c.RemoveBetweenDelimiters {
+			fmt.Fprintf(&b, "  - left=%q right=%q\n", d.Left, d.Right)
+		}
+	}
+	if c.RemoveLineIfContains != "" {
+		fmt.Fprintf(&b, "removeLineIfContains: %q\n", c.RemoveLineIfContains)
+	} else {
+		b.WriteString("removeLineIfContains: (empty; disabled)\n")
+	}
+	if c.LoadedFromFile {
+		b.WriteString("\nsource: config.json\n")
+	} else {
+		b.WriteString("\nsource: built-in defaults\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func (c *Config) SaveToBackupFile(jsonData []byte) error {
