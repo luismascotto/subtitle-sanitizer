@@ -17,6 +17,7 @@ import (
 	"github.com/luismascotto/subtitle-sanitizer/internal/mkv"
 	"github.com/luismascotto/subtitle-sanitizer/internal/model"
 	"github.com/luismascotto/subtitle-sanitizer/internal/rules"
+	"github.com/luismascotto/subtitle-sanitizer/internal/sanitize"
 	"github.com/luismascotto/subtitle-sanitizer/internal/subtitle"
 	"github.com/luismascotto/subtitle-sanitizer/internal/transform"
 )
@@ -186,13 +187,13 @@ func RenderTransformations(json []byte, inputPath string, doc *model.Document, c
 
 	sbContent.WriteString("## " + filepath.Base(inputPath) + "\n")
 
-	out, changes := transform.ApplyAll(*doc, conf)
+	res := sanitize.Apply(*doc, conf)
 
 	sbContent.WriteString("## Transformations\n")
-	if len(changes) > 0 {
+	if len(res.Changes) > 0 {
 		sbContent.WriteString("| Pos# | Original | Transformed/removed/empty | Rules |\n")
 		sbContent.WriteString("| --- | --- | --- | --- |\n")
-		sbContent.WriteString(transform.MarkdownRows(changes))
+		sbContent.WriteString(transform.MarkdownRows(res.Changes))
 	} else {
 		sbContent.WriteString("Nothing to remove...\n")
 	}
@@ -206,7 +207,7 @@ func RenderTransformations(json []byte, inputPath string, doc *model.Document, c
 	if err != nil {
 		exitWithErr(fmt.Errorf("run tea program: %w", err))
 	}
-	return out, retModel
+	return res.Document, retModel
 }
 
 func validateInputPath(p string) error {
