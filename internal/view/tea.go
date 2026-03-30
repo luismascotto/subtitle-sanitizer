@@ -2,6 +2,10 @@ package view
 
 import (
 	"fmt"
+	"math"
+	"math/rand"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,9 +18,44 @@ import (
 	"github.com/luismascotto/subtitle-sanitizer/internal/mkv"
 )
 
-// --- Bubble Tea TUI ---
+// ---------------- Bubble Tea "shopping style center"----------------
+func NewStyle() lipgloss.Style {
+	return lipgloss.NewStyle()
+}
 
-type UIModel struct {
+func ForegroundColorStyle(color string) lipgloss.Style {
+	return NewStyle().Foreground(lipgloss.Color(color))
+}
+
+var (
+	//style = lipgloss.NewStyle()
+
+	spinners = []spinner.Spinner{
+		spinner.Line,
+		spinner.Dot,
+		spinner.MiniDot,
+		spinner.Jump,
+		spinner.Pulse,
+		spinner.Points,
+		spinner.Globe,
+		spinner.Moon,
+		spinner.Monkey,
+	}
+
+	textView = lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Render
+	helpView = NewStyle().Foreground(lipgloss.Color("#6B7280")).Italic(true).Render
+
+	loaderSpinnerStyle   = ForegroundColorStyle("69")
+	batchSpinnerStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
+	currentFilenameStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("211"))
+
+	doneStyle = lipgloss.NewStyle().Margin(1, 2)
+	checkMark = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
+	errorMark = lipgloss.NewStyle().Foreground(lipgloss.Color("160")).SetString("✗")
+)
+
+// ---------------- Review Transformations Model ----------------
+type ReviewTransformationsModel struct {
 	viewport  viewport.Model
 	Quit      bool
 	Apply     bool
@@ -24,7 +63,7 @@ type UIModel struct {
 	Overwrite bool
 }
 
-func NewViewPortModel(content string) (*UIModel, error) {
+func NewViewPortModel(content string) (*ReviewTransformationsModel, error) {
 
 	const width = 100
 
@@ -60,16 +99,16 @@ func NewViewPortModel(content string) (*UIModel, error) {
 
 	vp.SetContent(str)
 
-	return &UIModel{
+	return &ReviewTransformationsModel{
 		viewport: vp,
 	}, nil
 }
 
-func (m UIModel) Init() tea.Cmd {
+func (m ReviewTransformationsModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m ReviewTransformationsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.MouseWheelMsg:
@@ -102,33 +141,16 @@ func (m UIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m UIModel) View() tea.View {
+func (m ReviewTransformationsModel) View() tea.View {
 	content := m.viewport.View() + helpView("\n  ↑/↓: Navigate • q/x: Quit • esc/n: Skip • enter/a: Apply • o/w: Overwrite • s: srt\n")
 	v := tea.NewView(content)
 	v.MouseMode = tea.MouseModeAllMotion
 	return v
 }
 
-var (
-	spinners = []spinner.Spinner{
-		spinner.Line,
-		spinner.Dot,
-		spinner.MiniDot,
-		spinner.Jump,
-		spinner.Pulse,
-		spinner.Points,
-		spinner.Globe,
-		spinner.Moon,
-		spinner.Monkey,
-	}
+// ------------------------------------------------------------
 
-	textStyle            = lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Render
-	spinnerStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("69"))
-	helpView             = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Italic(true).Render
-	currentFilenameStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("211"))
-	doneStyle            = lipgloss.NewStyle().Margin(1, 2)
-	checkMark            = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).SetString("✓")
-)
+// ---------------- Loader Model ----------------
 
 type LoaderModel struct {
 	spinner spinner.Model
@@ -175,38 +197,24 @@ func (m LoaderModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 func (m LoaderModel) View() tea.View {
-	var s string
-	s += fmt.Sprintf("\n %s%s%s\n\n", m.spinner.View(), " ", textStyle(m.Message))
-	s += helpView("q: exit\n")
-	return tea.NewView(s)
+	return tea.NewView(fmt.Sprintf("\n %s%s%s\n\n%s", m.spinner.View(), " ", textView(m.Message), helpView("q: exit\n")))
 }
 
-func NewLoaderModel() *LoaderModel {
-	m := &LoaderModel{}
-	m.index = 0
-	m.spinner = spinner.New(
-		spinner.WithStyle(spinnerStyle),
-		spinner.WithSpinner(spinners[m.index]),
-	)
+func NewLoaderModel() LoaderModel {
+	m := LoaderModel{}
+	m.spinner = spinner.New()
+	m.spinner.Spinner = spinners[rand.Intn(len(spinners))] //nolint:gosec
+	m.spinner.Style = loaderSpinnerStyle
+
 	return m
 }
-func (m *LoaderModel) NextSpinner() {
-	m.index++
-	if m.index >= len(spinners) {
-		m.index = 0
-	}
-	m.spinner.Spinner = spinners[m.index]
-}
-func (m *LoaderModel) PreviousSpinner() {
-	m.index--
-	if m.index < 0 {
-		m.index = len(spinners) - 1
-	}
-	m.spinner.Spinner = spinners[m.index]
-}
 
+// ------------------------------------------------------------
+
+// ---------------- Batch Model ----------------
 type BatchModel struct {
 	files    []string
+	count    int
 	index    int
 	width    int
 	height   int
@@ -217,10 +225,13 @@ type BatchModel struct {
 
 func NewBatchModel(files []string) BatchModel {
 	p := progress.New(
+		progress.WithDefaultBlend(),
 		progress.WithWidth(40),
 		progress.WithoutPercentage(),
 	)
-	s := spinner.New(spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("63"))))
+	s := spinner.New()
+	s.Style = batchSpinnerStyle
+	s.Spinner = spinners[rand.Intn(len(spinners))] //nolint:gosec
 	return BatchModel{
 		files:    files,
 		spinner:  s,
@@ -229,12 +240,8 @@ func NewBatchModel(files []string) BatchModel {
 }
 
 func (m BatchModel) Init() tea.Cmd {
-	return tea.Batch(
-		extractSubtitles(m.files[m.index]),
-		func() tea.Msg {
-			return m.spinner.Tick()
-		},
-	)
+	//return tea.Batch(extractSubtitles(m.files[m.index]), m.spinner.Tick)
+	return tea.Sequence(m.spinner.Tick, extractSubtitles(m.files[m.index]))
 }
 
 func (m BatchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -246,14 +253,33 @@ func (m BatchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "esc", "q":
 			return m, tea.Quit
 		}
-	case extractedSubtitlesMsg:
-		file := m.files[m.index]
+	case ExtractedSubtitlesMsg:
+		result := msg.String()
+		//file := filepath.Base(m.files[m.index])
+		tryCount := 0
+		if countStr, _, found := strings.Cut(result, " "); found {
+			tryCount, _ = strconv.Atoi(countStr)
+			if tryCount > 0 {
+				m.count += tryCount
+			}
+		}
+
+		maxWidth := max(0, m.width-lipgloss.Width(fmt.Sprintf("%d %s  ", tryCount, checkMark)))
+		if len(result) > maxWidth {
+			result = result[:maxWidth]
+		}
+		finalMark := checkMark
+		if tryCount <= 0 {
+			finalMark = errorMark
+			tryCount = 0
+
+		}
 		if m.index >= len(m.files)-1 {
-			// Everything's been installed. We're done!
+			// Last file processed
 			m.done = true
 			return m, tea.Sequence(
-				tea.Printf("%s %s", checkMark, file), // print the last success message
-				tea.Quit,                             // exit the program
+				tea.Printf("%s %s", finalMark, result), // print the last success message
+				tea.Quit,                               // exit the program
 			)
 		}
 
@@ -263,9 +289,11 @@ func (m BatchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, tea.Batch(
 			progressCmd,
-			tea.Printf("%s %s", checkMark, file), // print success message above our program
-			extractSubtitles(m.files[m.index]),   // download the next package
+			tea.Printf("%s %s", finalMark, result), // print success message above our program
+			extractSubtitles(m.files[m.index]),     // download the next package
 		)
+	case ErrorExtractingSubtitlesMsg:
+		return m, tea.Quit
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -278,38 +306,69 @@ func (m BatchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m BatchModel) View() tea.View {
-	n := len(m.files)
-	w := lipgloss.Width(fmt.Sprintf("%d", n))
-
-	if m.done {
-		return tea.NewView(doneStyle.Render(fmt.Sprintf("Done! Extracted subtitles from %d files.\n", n)))
+func pluralize(count int, singular string, plural string) string {
+	// 0 is singular
+	if math.Abs(float64(count)) > 1 {
+		return plural
 	}
-
-	fileCount := fmt.Sprintf(" %*d/%*d", w, m.index, w, n)
-
-	spin := m.spinner.View() + " "
-	prog := m.progress.View()
-	cellsAvail := max(0, m.width-lipgloss.Width(spin+prog+fileCount))
-
-	fileName := currentFilenameStyle.Render(m.files[m.index])
-	info := lipgloss.NewStyle().MaxWidth(cellsAvail).Render("Extracting subtitles from " + fileName)
-
-	cellsRemaining := max(0, m.width-lipgloss.Width(spin+info+prog+fileCount))
-	gap := strings.Repeat(" ", cellsRemaining)
-
-	return tea.NewView(spin + info + gap + prog + fileCount)
+	return singular
 }
 
-type extractedSubtitlesMsg string
+func (m BatchModel) View() tea.View {
+	n := len(m.files)
+	if m.done {
+		return tea.NewView(doneStyle.Render(
+			fmt.Sprintf("Done! %d %s extracted from %d %s.\n",
+				m.count, pluralize(m.count, "subtitle", "subtitles"),
+				n, pluralize(n, "file", "files"))))
+	}
+
+	w := lipgloss.Width(fmt.Sprintf("%d", n))
+
+	//fileCount := fmt.Sprintf(" %*d/%*d", w, m.index, w, n)
+
+	viewSpin := fmt.Sprintf("%s ", m.spinner.View())
+
+	//prog := m.progress.View()
+
+	viewProgressCountfile := fmt.Sprintf("%s %*d/%*d", m.progress.View(), w, m.index, w, n)
+
+	tmpSpinProgCountfileWidth := fmt.Sprintf("%s%s", viewSpin, viewProgressCountfile)
+
+	cellsCountWidth := max(0, m.width-lipgloss.Width(tmpSpinProgCountfileWidth))
+	// shortName := strings.TrimSuffix(filepath.Base(m.files[m.index]), filepath.Ext(m.files[m.index]))
+	//fileName := currentFilenameStyle.Render(shortName)
+
+	viewInfo := lipgloss.NewStyle().MaxWidth(cellsCountWidth).Render(fmt.Sprintf("Extracting from %s", currentFilenameStyle.Render(filepath.Base(m.files[m.index]))))
+
+	tmpContentForWidthRemaining := fmt.Sprintf("%s%s", tmpSpinProgCountfileWidth, viewInfo)
+
+	cellsCountWidth = max(0, m.width-lipgloss.Width(tmpContentForWidthRemaining))
+
+	return tea.NewView(fmt.Sprintf("%s%s%s%s", viewSpin, viewInfo, strings.Repeat(" ", cellsCountWidth), viewProgressCountfile))
+}
+
+type ExtractedSubtitlesMsg string
+
+func (m ExtractedSubtitlesMsg) String() string {
+	return string(m)
+}
+
+type ErrorExtractingSubtitlesMsg string
+
+func (m ErrorExtractingSubtitlesMsg) String() string {
+	return string(m)
+}
 
 func extractSubtitles(file string) tea.Cmd {
-	_, err := mkv.ExtractAll(file, 0)
-	if err != nil {
-		return tea.Printf("Error extracting subtitles from %s: %s", file, err)
-	}
-	d := time.Millisecond * time.Duration(100) //nolint:gosec
+	d := time.Millisecond * time.Duration(200) //nolint:gosec
 	return tea.Tick(d, func(t time.Time) tea.Msg {
-		return extractedSubtitlesMsg(file)
+		count, _ := mkv.BatchExtractSubtitles(file)
+		// if err != nil {
+		// 	time.Sleep(5 * time.Second)
+		// 	//fmt.Println("Error extracting subtitles from MKV file", err)
+		// 	return ErrorExtractingSubtitlesMsg(err.Error())
+		// }
+		return ExtractedSubtitlesMsg(fmt.Sprintf("%d %s", count, filepath.Base(file)))
 	})
 }

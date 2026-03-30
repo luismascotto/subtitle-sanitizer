@@ -27,6 +27,8 @@ type ffprobeOutput struct {
 	Streams []subtitleTrack `json:"streams"`
 }
 
+var execLookPath = exec.LookPath
+
 func trackLanguage(t subtitleTrack) string {
 	return strings.ToLower(strings.TrimSpace(t.Tags.Language))
 }
@@ -68,33 +70,34 @@ func VerifyDependencies() error {
 	)
 }
 
-// Extract keeps backward compatibility by extracting only the first subtitle
+// ExtractSingleSubtitle keeps backward compatibility by extracting only the first subtitle
 // and returning its file name and content.
-func Extract(inputPath string) (string, []byte, error) {
-	paths, err := ExtractAll(inputPath, 1)
+func ExtractSingleSubtitle(inputPath string) (string, []byte, error) {
+	path, _, err := ExtractMultipleSubtitles(inputPath, 1)
 	if err != nil {
 		return "", nil, err
 	}
-	if len(paths) == 0 {
+	if path == nil || *path == "" {
 		return "", nil, errors.New("no subtitle tracks extracted")
 	}
-	data, err := osReadFile(paths[0])
+	data, err := os.ReadFile(*path)
 	if err != nil {
 		return "", nil, fmt.Errorf("read extracted subtitle: %w", err)
 	}
-	return paths[0], data, nil
+	return *path, data, nil
 }
 
-func ExtractAll(inputPath string, maxTracks int) ([]string, error) {
+func ExtractMultipleSubtitles(inputPath string, maxTracks int) (first *string, list []string, err error) {
+
 	if strings.ToLower(filepath.Ext(inputPath)) != ".mkv" {
-		return nil, fmt.Errorf("unsupported extension: %s (only .mkv)", filepath.Ext(inputPath))
+		return nil, nil, fmt.Errorf("unsupported extension: %s (only .mkv)", filepath.Ext(inputPath))
 	}
 	tracks, err := probeSubtitleTracks(inputPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(tracks) == 0 {
-		return nil, errors.New("no subtitle tracks found in mkv")
+		return nil, nil, errors.New("no subtitle tracks found in mkv")
 	}
 	sort.Slice(tracks, func(i, j int) bool {
 		return subtitleTrackOrders(tracks[i], tracks[j])
@@ -102,26 +105,72 @@ func ExtractAll(inputPath string, maxTracks int) ([]string, error) {
 	if maxTracks > 0 && maxTracks < len(tracks) {
 		tracks = tracks[:maxTracks]
 	}
+	//OPTIMIZE: if only one subtitle is being extracted, we can just extract it and return the path
+	if len(tracks) == 1 {
+		out := fmt.Sprintf("%s%s", inputPath[:len(inputPath)-4], subtitleExtension(tracks[0]))
+		if err := runFFmpegExtractTrack(inputPath, tracks[0].Index, out); err != nil {
+			return nil, nil, err
+		}
+		return &out, nil, nil
+	}
 
-	extCount := map[string]int{}
-	outPaths := make([]string, 0, len(tracks))
-	baseNoExt := strings.TrimSuffix(inputPath, filepath.Ext(inputPath))
+	collisionCount := map[string]int{}
+	subtitleOutPaths := make([]string, 0, len(tracks))
+	// remove extension (E:\folder\Mediafolder\file.mkv -> E:\folder\Mediafolder\file)
+	baseFilename := inputPath[:len(inputPath)-4]
+	sbOutPath := strings.Builder{}
+	enoughSpace := max(0, (len(inputPath)+4+4+4)-sbOutPath.Cap()) // 4 for count, 4 for language, 4 extra
+	sbOutPath.Grow(enoughSpace)
 
 	for _, track := range tracks {
+		// get extension alwithout the dot to match the base filename
 		ext := subtitleExtension(track)
-		suffix := extCount[ext]
-		outPath := baseNoExt + ext
-		if suffix > 0 {
-			outPath = fmt.Sprintf("%s_%d%s", baseNoExt, suffix, ext)
-		}
-		extCount[ext]++
+		mapKey := fmt.Sprintf("%s%s", track.Tags.Language, ext)
 
-		if err := runFFmpegExtractTrack(inputPath, track.Index, outPath); err != nil {
-			return nil, err
+		countSuffix := collisionCount[mapKey]
+
+		sbOutPath.Reset()
+		// ->  E:\folder\Mediafolder\file
+		sbOutPath.WriteString(baseFilename)
+
+		if countSuffix > 0 {
+			// ->  E:\folder\Mediafolder\file_01
+			fmt.Fprintf(&sbOutPath, "_%02d", countSuffix)
 		}
-		outPaths = append(outPaths, outPath)
+
+		collisionCount[mapKey]++
+
+		if track.Tags.Language != "" {
+			// ->  E:\folder\Mediafolder\file_01.eng
+			fmt.Fprintf(&sbOutPath, ".%s", track.Tags.Language)
+		}
+		// ->  E:\folder\Mediafolder\file_01.eng.srt
+		fmt.Fprintf(&sbOutPath, "%s", ext)
+
+		outString := sbOutPath.String()
+		//fmt.Printf("runFFmpegExtractTrack: %s \n", outString)
+
+		if err := runFFmpegExtractTrack(inputPath, track.Index, outString); err != nil {
+			return nil, nil, err
+		}
+		subtitleOutPaths = append(subtitleOutPaths, outString)
 	}
-	return outPaths, nil
+	return &subtitleOutPaths[0], subtitleOutPaths, nil
+}
+
+func BatchExtractSubtitles(inputPath string) (count int, err error) {
+	firstPath, paths, err := ExtractMultipleSubtitles(inputPath, 0)
+	if err != nil {
+		return 0, err
+	}
+	if firstPath != nil {
+		count = 1
+	}
+	if paths != nil {
+		count = len(paths)
+	}
+	//return len(paths), nil
+	return count, nil
 }
 
 func probeSubtitleTracks(inputPath string) ([]subtitleTrack, error) {
@@ -179,9 +228,3 @@ func subtitleExtension(track subtitleTrack) string {
 		return ".sub"
 	}
 }
-
-func osReadFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
-}
-
-var execLookPath = exec.LookPath

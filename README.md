@@ -7,7 +7,7 @@ A small CLI tool to sanitize subtitle files by removing Hearing Impaired Text (H
 - ASS: stubbed (clear error)
 - Rule: remove ALL UPPERCASE words (2+ chars)
 - Drops cues that end up with no alphabetic content
-- Renumbers cues on save
+- Rewrite cues sequence at writing file to disk
 - JSON rules scaffold: in place (future work)
 
 ## Install
@@ -17,17 +17,15 @@ go build -o subtitle-sanitizer ./cmd/sanitize
 
 ## Usage
 ```bash
-subtitle-sanitizer -input path/to/file.srt
+subtitle-sanitizer path/to/file1.srt path/to/file2.srt 
 ```
 
 Options:
-- `-input` (required): file path to `.srt` or `.ass`
-- `-encoding` (optional): defaults to `utf-8`
-- `-verbose` (optional): extra logging
-- `-ignoreErrors` (optional): continue best-effort on minor parse issues
+- `PATH1 [PATH2] [--mkv-extract, -m]`, (default false): try to extract all subtitles from files, or try extract one (eng first) and try to sanitize it
+- 
 
 Output:
-- Saves to `path/to/file-his.srt`
+- Saves to `path/to/file-his.srt` or `path/to/file.srt`, depending on overwrite choice
 
 ## WebAssembly (browser)
 

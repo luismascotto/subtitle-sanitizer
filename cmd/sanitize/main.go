@@ -57,11 +57,11 @@ func main() {
 		_ = conf.SaveToBackupFile(backupJSON)
 	}
 	if args.MkvExtract {
-		batchModel := view.NewBatchModel(args.Input)
-		_, err := tea.NewProgram(batchModel).Run()
-		if err != nil {
+		// batchModel := view.NewBatchModel(args.Input)
+		if _, err := tea.NewProgram(view.NewBatchModel(args.Input)).Run(); err != nil {
 			exitWithErr(fmt.Errorf("run batch program: %w", err))
 		}
+		time.Sleep(1 * time.Second)
 		return
 	}
 
@@ -79,7 +79,7 @@ func main() {
 
 			go func() {
 				loader.Send(view.LoaderMsg{Message: "Extracting subtitles from MKV file...", Quit: false})
-				inputPath, data, err = mkv.Extract(inputPath)
+				inputPath, data, err = mkv.ExtractSingleSubtitle(inputPath)
 				if err != nil {
 					loader.Send(view.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: false})
 					time.Sleep(1 * time.Second)
@@ -124,7 +124,7 @@ func main() {
 		}
 
 		result, retModel := RenderTransformations(rulesDisplay, inputPath, doc, conf)
-		retModelCheck, ok := retModel.(view.UIModel)
+		retModelCheck, ok := retModel.(view.ReviewTransformationsModel)
 		if !ok {
 			exitWithErr(errors.New("retModel is not of type UIModel"))
 		}
@@ -166,7 +166,7 @@ func ReadFileContent(inputPath string) []byte {
 	return data
 }
 
-func ApplyTransformations(inputPath string, retModelCheck view.UIModel, result *model.Document) {
+func ApplyTransformations(inputPath string, retModelCheck view.ReviewTransformationsModel, result *model.Document) {
 	if result.Format == model.SubtitleFormatSRT && retModelCheck.Overwrite && !retModelCheck.Apply {
 		return
 	}
@@ -210,6 +210,7 @@ func RenderTransformations(rulesDisplay string, inputPath string, doc *model.Doc
 	if err != nil {
 		exitWithErr(fmt.Errorf("run tea program: %w", err))
 	}
+	time.Sleep(1 * time.Second)
 	return res.Document, retModel
 }
 
@@ -263,6 +264,8 @@ func FileExists(path string) bool {
 
 func exitWithErr(err error) {
 	fmt.Fprintln(os.Stderr, "Error:", err)
+	fmt.Println("Exiting with error:", err)
+	time.Sleep(5 * time.Second)
 	os.Exit(1)
 }
 
