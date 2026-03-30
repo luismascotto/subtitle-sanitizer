@@ -1,0 +1,29 @@
+{
+  "loadedFromFile": true,
+  "removeTextBeforeColonIfUppercase": true,
+  "removeTextBeforeColon": true,
+  "removeSingleLineColon": true,
+  "removeBetweenDelimiters": [
+    {
+      "left": "(",
+      "right": ")"
+    },
+    {
+      "left": "[",
+      "right": "]"
+    },
+    {
+      "left": "{",
+      "right": "}"
+    },
+    {
+      "left": "*",
+      "right": "*"
+    },
+    {
+      "left": "♪",
+      "right": "♪"
+    }
+  ],
+  "removeLineIfContains": "music ♪"
+}
