@@ -21,6 +21,7 @@ import (
 	"github.com/luismascotto/subtitle-sanitizer/internal/sanitize"
 	"github.com/luismascotto/subtitle-sanitizer/internal/subtitle"
 	"github.com/luismascotto/subtitle-sanitizer/internal/transform"
+	"github.com/luismascotto/subtitle-sanitizer/internal/view"
 )
 
 func main() {
@@ -56,7 +57,7 @@ func main() {
 		_ = conf.SaveToBackupFile(backupJSON)
 	}
 	if args.MkvExtract {
-		batchModel := model.NewBatchModel(args.Input)
+		batchModel := view.NewBatchModel(args.Input)
 		_, err := tea.NewProgram(batchModel).Run()
 		if err != nil {
 			exitWithErr(fmt.Errorf("run batch program: %w", err))
@@ -74,17 +75,17 @@ func main() {
 		}
 
 		if ext == ".mkv" {
-			loader := tea.NewProgram(model.NewLoaderModel())
+			loader := tea.NewProgram(view.NewLoaderModel())
 
 			go func() {
-				loader.Send(model.LoaderMsg{Message: "Extracting subtitles from MKV file...", Quit: false})
+				loader.Send(view.LoaderMsg{Message: "Extracting subtitles from MKV file...", Quit: false})
 				inputPath, data, err = mkv.Extract(inputPath)
 				if err != nil {
-					loader.Send(model.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: false})
+					loader.Send(view.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: false})
 					time.Sleep(1 * time.Second)
-					loader.Send(model.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: true})
+					loader.Send(view.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: true})
 				} else {
-					loader.Send(model.LoaderMsg{Message: "Subtitles extracted successfully", Quit: true})
+					loader.Send(view.LoaderMsg{Message: "Subtitles extracted successfully", Quit: true})
 				}
 			}()
 
@@ -123,7 +124,7 @@ func main() {
 		}
 
 		result, retModel := RenderTransformations(rulesDisplay, inputPath, doc, conf)
-		retModelCheck, ok := retModel.(model.UIModel)
+		retModelCheck, ok := retModel.(view.UIModel)
 		if !ok {
 			exitWithErr(errors.New("retModel is not of type UIModel"))
 		}
@@ -165,7 +166,7 @@ func ReadFileContent(inputPath string) []byte {
 	return data
 }
 
-func ApplyTransformations(inputPath string, retModelCheck model.UIModel, result *model.Document) {
+func ApplyTransformations(inputPath string, retModelCheck view.UIModel, result *model.Document) {
 	if result.Format == model.SubtitleFormatSRT && retModelCheck.Overwrite && !retModelCheck.Apply {
 		return
 	}
@@ -200,7 +201,7 @@ func RenderTransformations(rulesDisplay string, inputPath string, doc *model.Doc
 		sbContent.WriteString("Nothing to remove...\n")
 	}
 
-	vpModel, err := model.NewViewPortModel(sbContent.String())
+	vpModel, err := view.NewViewPortModel(sbContent.String())
 	if err != nil {
 		exitWithErr(fmt.Errorf("new model: %w", err))
 	}

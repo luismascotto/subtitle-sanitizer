@@ -1,6 +1,4 @@
-//go:build !(js && wasm) && !(tinygo && wasm)
-
-package model
+package view
 
 import (
 	"fmt"
@@ -17,7 +15,6 @@ import (
 )
 
 // --- Bubble Tea TUI ---
-//type tickMsg struct{}
 
 type UIModel struct {
 	viewport  viewport.Model
@@ -69,8 +66,6 @@ func NewViewPortModel(content string) (*UIModel, error) {
 }
 
 func (m UIModel) Init() tea.Cmd {
-	//return tea.Tick(time.Second, func(time.Time) tea.Msg { return tickMsg{} })
-
 	return nil
 }
 
@@ -114,25 +109,7 @@ func (m UIModel) View() tea.View {
 	return v
 }
 
-// type colorTheme struct {
-// 	fg string
-// 	bg string
-// }
-
-//	var colorThemes = []colorTheme{
-//		{fg: "#FFD166", bg: "#073B4C"}, // golden on deep teal
-//		{fg: "#06D6A0", bg: "#1B1F3B"}, // mint on midnight
-//		{fg: "#EF476F", bg: "#2F2E41"}, // pink on ink
-//		{fg: "#A78BFA", bg: "#111827"}, // violet on near-black
-//		{fg: "#F59E0B", bg: "#0F172A"}, // amber on slate
-//	}
 var (
-	// headerStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#93C5FD")).Background(lipgloss.Color("#1F2937")).Bold(true).Padding(0, 1)
-	// dividerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#374151"))
-	// timeStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Bold(true)
-	// messageStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
-	// secondaryStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
-	// Available spinners
 	spinners = []spinner.Spinner{
 		spinner.Line,
 		spinner.Dot,
