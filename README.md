@@ -34,7 +34,7 @@ The same sanitize pipeline is exposed as JSON in/out via `internal/wasmbridge` (
 - **Build:** `make wasm-pages` (Unix) or `scripts/build-wasm.ps1` (Windows). Copies `wasm_exec.js` and `sanitize-go.wasm` into `web/wasm-demo/` next to `index.html`.
 - **Try locally:** `npx serve web/wasm-demo` and open the URL shown (must be HTTP, not `file://`).
 - **JSON shapes:** `wasm/schema/request.schema.json` and `response.schema.json`.
-- **Cloudflare:** see `cloudflare/README.md`.
+- **Cloudflare Pages (static only):** see `cloudflare/README.md` — no Worker; WASM runs in the browser.
 - **CI:** `.github/workflows/wasm.yml` runs tests and uploads a `wasm-demo` artifact.
 
 ## Roadmap

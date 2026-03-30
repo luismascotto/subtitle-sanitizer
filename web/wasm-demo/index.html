@@ -19,6 +19,7 @@
 <body>
   <h1>subtitle-sanitizer (WASM)</h1>
   <p>Run <code>make wasm-pages</code> or <code>scripts/build-wasm.ps1</code> so <code>wasm_exec.js</code> and <code>sanitize-go.wasm</code> exist in this folder, then serve over HTTP (e.g. <code>npx serve .</code>).</p>
+  <p><strong>Hosting:</strong> deploy this directory as <strong>static files</strong> only (e.g. Cloudflare Pages). Sanitization runs in the visitor’s browser; no edge Worker is involved.</p>
 
   <div class="row">
     <label>WASM binary
