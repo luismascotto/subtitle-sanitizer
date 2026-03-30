@@ -1,3 +1,5 @@
+//go:build !(js && wasm) && !(tinygo && wasm)
+
 package model
 
 import (

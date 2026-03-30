@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>subtitle-sanitizer wasm smoke</title>
+</head>
+<body>
+  <pre id="out">Loading…</pre>
+  <script src="../dist/wasm_exec.js"></script>
+  <script>
+    const go = new Go();
+    const out = document.getElementById("out");
+    const wasm = "../dist/sanitize-go.wasm"; // switch to sanitize-tinygo.wasm to compare
+    WebAssembly.instantiateStreaming(fetch(wasm), go.importObject).then((result) => {
+      go.run(result.instance);
+      const req = JSON.stringify({
+        format: "srt",
+        subtitle: "1\n00:00:01,000 --> 00:00:02,000\nHello (noise) world\n\n"
+      });
+      const raw = globalThis.subtitleSanitizerProcess(req);
+      out.textContent = typeof raw === "string" ? raw : JSON.stringify(raw);
+    }).catch((e) => { out.textContent = String(e); });
+  </script>
+</body>
+</html>
