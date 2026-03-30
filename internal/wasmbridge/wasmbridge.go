@@ -1,3 +1,5 @@
+// Package wasmbridge implements the JSON request/response contract used by cmd/wasm and cmd/tinywasm.
+// JSON shapes are described under wasm/schema/ for OpenAPI-adjacent tooling.
 package wasmbridge
 
 import (

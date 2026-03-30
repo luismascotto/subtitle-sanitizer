@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luismascotto/subtitle-sanitizer/wasm/response.schema.json",
+  "title": "subtitle-sanitizer WASM response",
+  "type": "object",
+  "required": ["ok"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "error": { "type": "string" },
+    "srt": {
+      "type": "string",
+      "description": "UTF-8 SRT output when ok is true"
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["cueIndex", "original", "transformed", "rules"],
+        "properties": {
+          "cueIndex": { "type": "integer" },
+          "original": { "type": "string" },
+          "transformed": { "type": "string" },
+          "rules": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

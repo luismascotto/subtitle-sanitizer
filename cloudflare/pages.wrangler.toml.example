@@ -1,0 +1,5 @@
+# Optional wrangler metadata when using Pages with Git builds.
+# For direct upload after `make wasm-pages`, prefer:
+#   npx wrangler pages deploy web/wasm-demo --project-name=subtitle-sanitizer-wasm-demo
+name = "subtitle-sanitizer-wasm-demo"
+compatibility_date = "2025-01-01"

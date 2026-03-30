@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>subtitle-sanitizer · WASM demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 52rem; margin: 1rem auto; padding: 0 1rem; }
+    label { display: block; margin-top: 0.75rem; font-weight: 600; }
+    textarea, select { width: 100%; box-sizing: border-box; font-family: ui-monospace, monospace; font-size: 0.85rem; }
+    textarea { min-height: 8rem; }
+    #cfg { min-height: 6rem; }
+    button { margin-top: 0.75rem; padding: 0.4rem 1rem; }
+    #status { color: #666; font-size: 0.9rem; margin-top: 0.5rem; }
+    #out { white-space: pre-wrap; background: #f4f4f5; padding: 1rem; border-radius: 6px; margin-top: 1rem; }
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>subtitle-sanitizer (WASM)</h1>
+  <p>Run <code>make wasm-pages</code> or <code>scripts/build-wasm.ps1</code> so <code>wasm_exec.js</code> and <code>sanitize-go.wasm</code> exist in this folder, then serve over HTTP (e.g. <code>npx serve .</code>).</p>
+
+  <div class="row">
+    <label>WASM binary
+      <select id="wasmChoice">
+        <option value="sanitize-go.wasm">sanitize-go.wasm (official Go)</option>
+        <option value="sanitize-tinygo.wasm">sanitize-tinygo.wasm (TinyGo, if built)</option>
+      </select>
+    </label>
+  </div>
+
+  <label>Format
+    <select id="fmt">
+      <option value="srt">srt</option>
+      <option value="ass">ass</option>
+    </select>
+  </label>
+
+  <label>Subtitle text (<code>subtitle</code> field — UTF-8)
+    <textarea id="sub" spellcheck="false">1
+00:00:01,000 --> 00:00:02,000
+Hello (noise) world
+
+</textarea>
+  </label>
+
+  <label>Rules JSON (<code>config</code> — use <code>{}</code> for defaults)
+    <textarea id="cfg" spellcheck="false">{}</textarea>
+  </label>
+
+  <button type="button" id="run" disabled>Process</button>
+  <div id="status">Loading WASM…</div>
+  <h2>Response</h2>
+  <pre id="out"></pre>
+
+  <script src="./wasm_exec.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    const outEl = document.getElementById("out");
+    const runBtn = document.getElementById("run");
+    const wasmChoice = document.getElementById("wasmChoice");
+
+    const go = new Go();
+    let ready = false;
+
+    async function loadWasm() {
+      const name = wasmChoice.value;
+      statusEl.textContent = "Fetching " + name + "…";
+      outEl.textContent = "";
+      runBtn.disabled = true;
+      ready = false;
+      try {
+        const res = await fetch("./" + name);
+        if (!res.ok) throw new Error(res.status + " " + res.statusText + " for " + name);
+        const result = await WebAssembly.instantiateStreaming(res, go.importObject);
+        go.run(result.instance);
+        ready = true;
+        runBtn.disabled = false;
+        statusEl.textContent = "Ready (" + name + ").";
+      } catch (e) {
+        statusEl.textContent = "Error: " + e;
+        outEl.textContent = String(e);
+      }
+    }
+
+    wasmChoice.addEventListener("change", loadWasm);
+
+    runBtn.addEventListener("click", () => {
+      if (!ready) return;
+      try {
+        let cfgRaw = document.getElementById("cfg").value.trim();
+        if (cfgRaw === "") cfgRaw = "{}";
+        const body = {
+          format: document.getElementById("fmt").value,
+          subtitle: document.getElementById("sub").value,
+          config: JSON.parse(cfgRaw),
+        };
+        const raw = globalThis.subtitleSanitizerProcess(JSON.stringify(body));
+        outEl.textContent = typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
+      } catch (e) {
+        outEl.textContent = String(e);
+      }
+    });
+
+    loadWasm();
+  </script>
+</body>
+</html>

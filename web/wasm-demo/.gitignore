@@ -1,0 +1,4 @@
+# Produced by make wasm-pages or scripts/build-wasm.*
+wasm_exec.js
+sanitize-go.wasm
+sanitize-tinygo.wasm

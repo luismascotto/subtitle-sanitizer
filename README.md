@@ -29,6 +29,16 @@ Options:
 Output:
 - Saves to `path/to/file-his.srt`
 
+## WebAssembly (browser)
+
+The same sanitize pipeline is exposed as JSON in/out via `internal/wasmbridge` (used by `cmd/wasm` and `cmd/tinywasm`).
+
+- **Build:** `make wasm-pages` (Unix) or `scripts/build-wasm.ps1` (Windows). Copies `wasm_exec.js` and `sanitize-go.wasm` into `web/wasm-demo/` next to `index.html`.
+- **Try locally:** `npx serve web/wasm-demo` and open the URL shown (must be HTTP, not `file://`).
+- **JSON shapes:** `wasm/schema/request.schema.json` and `response.schema.json`.
+- **Cloudflare:** see `cloudflare/README.md`.
+- **CI:** `.github/workflows/wasm.yml` runs tests and uploads a `wasm-demo` artifact.
+
 ## Roadmap
 - Implement robust `.ass` parsing and conversion to SRT
 - Expand rules via external JSON (regex-based, bracket text removal, etc.)
