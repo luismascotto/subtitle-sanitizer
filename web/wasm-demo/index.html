@@ -50,8 +50,13 @@ Hello (noise) world
   </label>
 
   <button type="button" id="run" disabled>Process</button>
+  <button type="button" id="download" disabled>Download .srt</button>
   <div id="status">Loading WASM…</div>
-  <h2>Response</h2>
+
+  <h2>Output subtitle (.srt)</h2>
+  <textarea id="srtOut" spellcheck="false" placeholder="Processed SRT will appear here"></textarea>
+
+  <h2>Rule applications (JSON)</h2>
   <pre id="out"></pre>
 
   <script src="./wasm_exec.js"></script>
@@ -59,6 +64,7 @@ Hello (noise) world
     const statusEl = document.getElementById("status");
     const outEl = document.getElementById("out");
     const runBtn = document.getElementById("run");
+    const downloadBtn = document.getElementById("download");
     const wasmChoice = document.getElementById("wasmChoice");
 
     const go = new Go();
@@ -97,10 +103,43 @@ Hello (noise) world
           config: JSON.parse(cfgRaw),
         };
         const raw = globalThis.subtitleSanitizerProcess(JSON.stringify(body));
-        outEl.textContent = typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
+        let resp;
+        try {
+          resp = JSON.parse(typeof raw === "string" ? raw : String(raw));
+        } catch (parseErr) {
+          outEl.textContent = "Failed to parse JSON response: " + parseErr + "\n\nRaw:\n" + String(raw);
+          downloadBtn.disabled = true;
+          return;
+        }
+        if (!resp || resp.ok === false) {
+          statusEl.textContent = "Error from sanitizer";
+          outEl.textContent = JSON.stringify(resp, null, 2);
+          downloadBtn.disabled = true;
+          return;
+        }
+        const srt = resp.srt || "";
+        document.getElementById("srtOut").value = srt;
+        downloadBtn.disabled = !srt;
+        outEl.textContent = resp.changes ? JSON.stringify(resp.changes, null, 2) : "";
+        statusEl.textContent = "OK (" + (resp.changes ? resp.changes.length : 0) + " changes)";
       } catch (e) {
         outEl.textContent = String(e);
+        downloadBtn.disabled = true;
       }
+    });
+
+    downloadBtn.addEventListener("click", () => {
+      const srt = document.getElementById("srtOut").value;
+      if (!srt) return;
+      const blob = new Blob([srt], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "subtitle-sanitized.srt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     });
 
     loadWasm();
