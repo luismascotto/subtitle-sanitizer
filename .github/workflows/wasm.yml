@@ -26,7 +26,9 @@ jobs:
           go-version-file: go.mod
       - name: Build WASM + stage wasm-demo
         run: bash scripts/build-wasm.sh
-      - uses: actions/upload-artifact@v4
+      - name: Upload static files as artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v3 # or specific "vX.X.X" version tag for this action
         with:
-          name: wasm-demo
           path: web/wasm-demo/
+      
