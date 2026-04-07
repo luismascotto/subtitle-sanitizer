@@ -29,7 +29,7 @@ func ParseASS(data []byte) (*model.Document, error) {
 			continue
 		}
 		// For now, only parse [Events] block
-		if strings.TrimSpace(blk[0]) != "[Events]" {
+		if !strings.Contains(blk[0], "[Events]") {
 			continue
 		}
 		cues, err = parseASSEventsBlock(blk)
