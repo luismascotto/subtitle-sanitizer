@@ -39,17 +39,17 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 		rulesApplied := []string{}
 		ruleTriggered := false
 
-		newCue := &model.Cue{
-			Index: cue.Index,
-			Start: cue.Start,
-			End:   cue.End,
-			Lines: "",
-		}
-
 		text := cue.Lines
 
 		if doc.Format == model.SubtitleFormatASS {
 			text = convertASSFormattingToSRT(text)
+		}
+
+		newCue := &model.Cue{
+			Index: cue.Index,
+			Start: cue.Start,
+			End:   cue.End,
+			Lines: text,
 		}
 
 		if conf.RemoveLineIfContains != "" {
@@ -57,37 +57,29 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 			for removeLineIfContains := range lstRemoveLineIfContains {
 				if strings.Contains(text, removeLineIfContains) {
 					text = ""
-					changes = append(changes, CueChange{
-						CueIndex:    cue.Index,
-						Original:    cue.Lines,
-						Transformed: "",
-						Rules:       []string{"removeIfContains"},
-					})
+					rulesApplied = append(rulesApplied, "removeIfContains")
 					break
 				}
 			}
-			// If the text is empty, skip the remaining rules
-			if text == "" {
-				continue
-			}
 		}
-
-		if conf.RemoveSingleLineColon {
-			ruleTriggered, text = removeSingleLineColon(text)
-			if ruleTriggered {
-				rulesApplied = append(rulesApplied, "removeLineColon")
+		if text != "" {
+			if conf.RemoveSingleLineColon {
+				ruleTriggered, text = removeSingleLineColon(text)
+				if ruleTriggered {
+					rulesApplied = append(rulesApplied, "removeLineColon")
+				}
 			}
-		}
 
-		if conf.RemoveTextBeforeColonIfUppercase {
-			ruleTriggered, text = removeUppercaseTextWithColon(text)
-			if ruleTriggered {
-				rulesApplied = append(rulesApplied, "TEXT:")
-			}
-		} else if conf.RemoveTextBeforeColon {
-			ruleTriggered, text = removeTextBeforeColon(text)
-			if ruleTriggered {
-				rulesApplied = append(rulesApplied, "text:")
+			if conf.RemoveTextBeforeColonIfUppercase {
+				ruleTriggered, text = removeUppercaseTextWithColon(text)
+				if ruleTriggered {
+					rulesApplied = append(rulesApplied, "TEXT:")
+				}
+			} else if conf.RemoveTextBeforeColon {
+				ruleTriggered, text = removeTextBeforeColon(text)
+				if ruleTriggered {
+					rulesApplied = append(rulesApplied, "text:")
+				}
 			}
 		}
 
@@ -131,33 +123,31 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 			}
 		}
 
-		if text != "" {
-			if len(rulesApplied) > 0 {
-				textLines := strings.Split(text, "\n")
-				finalTextLines := []string{}
-				for i := range textLines {
-					if lineHasAlphabetic(textLines[i]) {
-						sanitizedLine := strings.TrimSpace(collapseSpaces(textLines[i]))
-						if sanitizedLine != "" {
-							finalTextLines = append(finalTextLines, sanitizedLine)
-						}
+		if text != "" && len(rulesApplied) > 0 {
+			textLines := strings.Split(text, "\n")
+			finalTextLines := []string{}
+			for i := range textLines {
+				if lineHasAlphabetic(textLines[i]) {
+					sanitizedLine := strings.TrimSpace(collapseSpaces(textLines[i]))
+					if sanitizedLine != "" {
+						finalTextLines = append(finalTextLines, sanitizedLine)
 					}
 				}
-				newCue.Lines = strings.Join(finalTextLines, "\n")
-				//newCue.Lines = strings.TrimSpace(collapseSpaces(strings.TrimSuffix(strings.TrimPrefix(newCue.Lines, "\n"), "\n")))
-			} else {
-				newCue.Lines = text
 			}
+			text = strings.Join(finalTextLines, "\n")
 		}
 
+		//Simplify new cue text update. Initialize newCue.Lines with text and add to changes if rules were applied.
 		if len(rulesApplied) > 0 {
+
+			newCue.Lines = text
+
 			changes = append(changes, CueChange{
 				CueIndex:    cue.Index,
 				Original:    cue.Lines,
 				Transformed: newCue.Lines,
 				Rules:       append([]string(nil), rulesApplied...),
 			})
-
 		}
 		out.Cues = append(out.Cues, newCue)
 	}
