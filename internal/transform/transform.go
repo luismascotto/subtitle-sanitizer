@@ -52,14 +52,24 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 			text = convertASSFormattingToSRT(text)
 		}
 
-		if conf.RemoveLineIfContains != "" && strings.Contains(text, conf.RemoveLineIfContains) {
-			changes = append(changes, CueChange{
-				CueIndex:    cue.Index,
-				Original:    cue.Lines,
-				Transformed: "",
-				Rules:       []string{"removeIfContains"},
-			})
-			continue
+		if conf.RemoveLineIfContains != "" {
+			lstRemoveLineIfContains := strings.SplitSeq(conf.RemoveLineIfContains, "\n")
+			for removeLineIfContains := range lstRemoveLineIfContains {
+				if strings.Contains(text, removeLineIfContains) {
+					text = ""
+					changes = append(changes, CueChange{
+						CueIndex:    cue.Index,
+						Original:    cue.Lines,
+						Transformed: "",
+						Rules:       []string{"removeIfContains"},
+					})
+					break
+				}
+			}
+			// If the text is empty, skip the remaining rules
+			if text == "" {
+				continue
+			}
 		}
 
 		if conf.RemoveSingleLineColon {
@@ -122,27 +132,33 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 		}
 
 		if text != "" {
-			textLines := strings.Split(text, "\n")
-			finalTextLines := []string{}
-			for i := range textLines {
-				if lineHasAlphabetic(textLines[i]) {
-					finalTextLines = append(finalTextLines, textLines[i])
+			if len(rulesApplied) > 0 {
+				textLines := strings.Split(text, "\n")
+				finalTextLines := []string{}
+				for i := range textLines {
+					if lineHasAlphabetic(textLines[i]) {
+						sanitizedLine := strings.TrimSpace(collapseSpaces(textLines[i]))
+						if sanitizedLine != "" {
+							finalTextLines = append(finalTextLines, sanitizedLine)
+						}
+					}
 				}
+				newCue.Lines = strings.Join(finalTextLines, "\n")
+				//newCue.Lines = strings.TrimSpace(collapseSpaces(strings.TrimSuffix(strings.TrimPrefix(newCue.Lines, "\n"), "\n")))
+			} else {
+				newCue.Lines = text
 			}
-			newCue.Lines = strings.Join(finalTextLines, "\n")
-			newCue.Lines = strings.TrimSpace(collapseSpaces(strings.TrimSuffix(strings.TrimPrefix(newCue.Lines, "\n"), "\n")))
 		}
 
 		if len(rulesApplied) > 0 {
-			rulesCopy := append([]string(nil), rulesApplied...)
 			changes = append(changes, CueChange{
 				CueIndex:    cue.Index,
 				Original:    cue.Lines,
 				Transformed: newCue.Lines,
-				Rules:       rulesCopy,
+				Rules:       append([]string(nil), rulesApplied...),
 			})
-		}
 
+		}
 		out.Cues = append(out.Cues, newCue)
 	}
 

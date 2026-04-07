@@ -115,7 +115,7 @@ func parseASSEventsBlock(blk []string) ([]*model.Cue, error) {
 		cues = append(cues, &model.Cue{
 			Start: start,
 			End:   end,
-			Lines: strings.ReplaceAll(parts[textIndex], "\\N", "\n"),
+			Lines: strings.ReplaceAll(strings.TrimSpace(parts[textIndex]), "\\N", "\n"),
 		})
 	}
 	return cues, nil

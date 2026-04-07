@@ -69,15 +69,16 @@ func parseSRTBlock(lines []string) (*model.Cue, error) {
 		return nil, errors.New("srt block too short")
 	}
 	// First line is (usually) index
-	_, _ = strconv.Atoi(strings.TrimSpace(lines[0])) // ignore parsing errors; some files omit or duplicate
+	index, _ := strconv.Atoi(strings.TrimSpace(lines[0])) // ignore parsing errors; some files omit or duplicate
 	// Second line is timing
 	start, end, err := parseSRTTimingLine(lines[1])
 	if err != nil {
-		return nil, fmt.Errorf("parse timing: %w", err)
+		return nil, fmt.Errorf("srt parse timing: %w", err)
 	}
 	//textLines := append([]string{}, lines[2:]...)
 	textLines := strings.Join(lines[2:], "\n")
 	return &model.Cue{
+		Index: index,
 		Start: start,
 		End:   end,
 		Lines: textLines,
