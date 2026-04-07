@@ -362,6 +362,40 @@ func TestApplyAll_removeLineIfContains_logsChange(t *testing.T) {
 	}
 }
 
+func TestApplyAll_removeLineColon_logsChange(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues: []*model.Cue{
+			{Index: 1, Lines: "That woman said:"},
+		},
+	}
+	conf := rules.Config{RemoveSingleLineColon: true}
+	out, ch := ApplyAll(doc, conf)
+	if len(out.Cues) != 0 {
+		t.Fatalf("cue should be dropped, got %d cues", len(out.Cues))
+	}
+	if len(ch) != 1 || ch[0].Rules[0] != "removeLineColon" || ch[0].Original != "That woman said:" {
+		t.Fatalf("unexpected changes: %+v", ch)
+	}
+}
+
+func TestApplyAll_removeTextBeforeColonIfUppercase_logsChange(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues: []*model.Cue{
+			{Index: 1, Lines: "VOICE OVER:"},
+		},
+	}
+	conf := rules.Config{RemoveTextBeforeColonIfUppercase: true}
+	out, ch := ApplyAll(doc, conf)
+	if len(out.Cues) != 0 {
+		t.Fatalf("cue should be dropped, got %d cues", len(out.Cues))
+	}
+	if len(ch) != 1 || ch[0].Rules[0] != "TEXT:" || ch[0].Original != "VOICE OVER:" {
+		t.Fatalf("unexpected changes: %+v", ch)
+	}
+}
+
 func TestApplyAll_parentheses_emitsChange(t *testing.T) {
 	doc := model.Document{
 		Format: model.SubtitleFormatSRT,
