@@ -90,14 +90,15 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 					text = strings.ReplaceAll(text, delimiter.Left+delimiter.Left, delimiter.Left)
 				}
 				controlEscape := ""
-				if delimiter.Left == "{" {
-					// ASS format uses curly braces for formatting (italic, bold, etc.), {\i1}Text{\i0}
-					controlEscape = "\\"
-				}
+				// ASS format is transformed to SRT format, so we don't need to guard for '{'
+				// if delimiter.Left == "{" {
+				// 	// ASS format uses curly braces for formatting (italic, bold, etc.), {\i1}Text{\i0}
+				// 	controlEscape = "\\"
+				// }
 				minContentLen := 0
 				if delimiter.Left == "<" {
 					// SRT format uses angle brackets for formatting (italic, bold, etc.), <i>Text</i>
-					// also <font xxx>Text</font>
+					// also <font=xxx>Text</font>
 					minContentLen = 3
 					controlEscape = "/="
 				}

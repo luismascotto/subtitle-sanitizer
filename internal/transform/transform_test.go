@@ -291,7 +291,7 @@ func Test_convertASSFormattingToSRT(t *testing.T) {
 	}
 }
 
-func Test_dontRemoveBetweenDelimitersAcrossLines(t *testing.T) {
+func Test_dontRemoveBetweenDelimitersAcrossLinesRegex(t *testing.T) {
 	tests := []struct {
 		name string
 		s    string
@@ -318,7 +318,7 @@ func Test_dontRemoveBetweenDelimitersAcrossLines(t *testing.T) {
 	}
 }
 
-func Test_removeBetweenDelimitersAcrossLines(t *testing.T) {
+func Test_removeBetweenDelimitersAcrossLinesRegex(t *testing.T) {
 	tests := []struct {
 		name string
 		s    string
@@ -346,10 +346,11 @@ func Test_removeBetweenDelimitersAcrossLines(t *testing.T) {
 }
 
 func TestApplyAll_removeLineIfContains_logsChange(t *testing.T) {
+	original := "foo music * bar"
 	doc := model.Document{
 		Format: model.SubtitleFormatSRT,
 		Cues: []*model.Cue{
-			{Index: 1, Lines: "foo music * bar"},
+			{Index: 1, Lines: original},
 		},
 	}
 	conf := rules.Config{RemoveLineIfContains: " music *"}
@@ -357,16 +358,17 @@ func TestApplyAll_removeLineIfContains_logsChange(t *testing.T) {
 	if len(out.Cues) != 0 {
 		t.Fatalf("cue should be dropped, got %d cues", len(out.Cues))
 	}
-	if len(ch) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveLineIfContains) || ch[0].Original != "foo music * bar" {
+	if len(ch) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveLineIfContains) || ch[0].Original != original {
 		t.Fatalf("unexpected changes: %+v", ch)
 	}
 }
 
 func TestApplyAll_removeLineColon_logsChange(t *testing.T) {
+	original := "That woman said:"
 	doc := model.Document{
 		Format: model.SubtitleFormatSRT,
 		Cues: []*model.Cue{
-			{Index: 1, Lines: "That woman said:"},
+			{Index: 1, Lines: original},
 		},
 	}
 	conf := rules.Config{RemoveSingleLineColon: true}
@@ -374,16 +376,17 @@ func TestApplyAll_removeLineColon_logsChange(t *testing.T) {
 	if len(out.Cues) != 0 {
 		t.Fatalf("cue should be dropped, got %d cues", len(out.Cues))
 	}
-	if len(ch) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveSingleLineColon) || ch[0].Original != "That woman said:" {
+	if len(ch) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveSingleLineColon) || ch[0].Original != original {
 		t.Fatalf("unexpected changes: %+v", ch)
 	}
 }
 
 func TestApplyAll_removeTextBeforeColonIfUppercase_logsChange(t *testing.T) {
+	original := "VOICE OVER:"
 	doc := model.Document{
 		Format: model.SubtitleFormatSRT,
 		Cues: []*model.Cue{
-			{Index: 1, Lines: "VOICE OVER:"},
+			{Index: 1, Lines: original},
 		},
 	}
 	conf := rules.Config{RemoveTextBeforeColonIfUppercase: true}
@@ -391,7 +394,25 @@ func TestApplyAll_removeTextBeforeColonIfUppercase_logsChange(t *testing.T) {
 	if len(out.Cues) != 0 {
 		t.Fatalf("cue should be dropped, got %d cues", len(out.Cues))
 	}
-	if len(ch) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveTextBeforeColonIfUppercase) || ch[0].Original != "VOICE OVER:" {
+	if len(ch) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveTextBeforeColonIfUppercase) || ch[0].Original != original {
+		t.Fatalf("unexpected changes: %+v", ch)
+	}
+}
+
+func TestApplyAll_removeTextBeforeColon_logsChange(t *testing.T) {
+	original := "Voice over:"
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues: []*model.Cue{
+			{Index: 1, Lines: original},
+		},
+	}
+	conf := rules.Config{RemoveTextBeforeColon: true}
+	out, ch := ApplyAll(doc, conf)
+	if len(out.Cues) != 0 {
+		t.Fatalf("cue should be dropped, got %d cues", len(out.Cues))
+	}
+	if len(ch) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveTextBeforeColon) || ch[0].Original != original {
 		t.Fatalf("unexpected changes: %+v", ch)
 	}
 }
@@ -416,9 +437,216 @@ func TestMarkdownRows_empty(t *testing.T) {
 	if s := MarkdownRows(nil); s != "" {
 		t.Fatalf("got %q", s)
 	}
+	if s := MarkdownRows([]CueChange{}); s != "" {
+		t.Fatalf("empty slice: got %q", s)
+	}
 }
 
-func Test_normalizeRepeatedSingleDelimiters(t *testing.T) {
+func TestMarkdownRows_singleRow(t *testing.T) {
+	s := MarkdownRows([]CueChange{{
+		CueIndex:    3,
+		Original:    "a\nb",
+		Transformed: "c",
+		Rules:       []string{string(rules.RuleRemoveBetweenDelimiters) + " ( )"},
+	}})
+	if !strings.Contains(s, "| 3 |") || !strings.Contains(s, " \\n ") || !strings.Contains(s, "\\ Delims /") {
+		t.Fatalf("unexpected markdown row:\n%s", s)
+	}
+}
+
+func TestApplyAll_noCues(t *testing.T) {
+	out, ch := ApplyAll(model.Document{Format: model.SubtitleFormatSRT}, rules.Config{})
+	if len(out.Cues) != 0 || len(ch) != 0 {
+		t.Fatalf("want empty out and changes, got %d cues, %d changes", len(out.Cues), len(ch))
+	}
+}
+
+func TestApplyAll_emptyCueLines(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: ""}},
+	}
+	out, ch := ApplyAll(doc, rules.DefaultConfig())
+	if len(out.Cues) != 0 || len(ch) != 0 {
+		t.Fatalf("empty cue text should produce no output and no changes, got cues=%d changes=%d", len(out.Cues), len(ch))
+	}
+}
+
+func TestApplyAll_removeLineIfContains_emptyConfigDoesNothing(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: "foo music * bar"}},
+	}
+	conf := rules.Config{RemoveLineIfContains: ""}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 0 {
+		t.Fatalf("expected no changes, got %+v", ch)
+	}
+	if len(out.Cues) != 1 || out.Cues[0].Lines != "foo music * bar" {
+		t.Fatalf("cue should be unchanged, got %+v", out.Cues)
+	}
+}
+
+func TestApplyAll_removeLineIfContains_multilineConfigSecondPatternMatches(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: "alpha beta gamma"}},
+	}
+	conf := rules.Config{RemoveLineIfContains: "noSuchSubstring\nbeta"}
+	out, ch := ApplyAll(doc, conf)
+	if len(out.Cues) != 0 || len(ch) != 1 {
+		t.Fatalf("want cue dropped and one change, got cues=%d changes=%d", len(out.Cues), len(ch))
+	}
+	if len(ch[0].Rules) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveLineIfContains) {
+		t.Fatalf("unexpected rules: %+v", ch[0].Rules)
+	}
+}
+
+func TestApplyAll_removeLineIfContains_emptyFragmentMatchesEverything(t *testing.T) {
+	// strings.Contains(s, "") is always true; a leading newline in the config yields an empty first fragment.
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: "untouched"}},
+	}
+	conf := rules.Config{RemoveLineIfContains: "\nneedle"}
+	out, ch := ApplyAll(doc, conf)
+	if len(out.Cues) != 0 || len(ch) != 1 {
+		t.Fatalf("want cue cleared via empty fragment, got cues=%d changes=%v", len(out.Cues), ch)
+	}
+}
+
+func TestApplyAll_removeBetweenDelimiters_nilAndEmptySlice(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: "Hello (noise) world"}},
+	}
+	for _, delims := range [][]rules.Delimiter{nil, {}} {
+		conf := rules.Config{RemoveBetweenDelimiters: delims}
+		out, ch := ApplyAll(doc, conf)
+		if len(ch) != 0 || len(out.Cues) != 1 || out.Cues[0].Lines != "Hello (noise) world" {
+			t.Fatalf("delims=%v: want unchanged, got ch=%+v cues=%+v", delims, ch, out.Cues)
+		}
+	}
+}
+
+func TestApplyAll_emptyParenthesesRemoved(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: "Hello () world"}},
+	}
+	conf := rules.Config{RemoveBetweenDelimiters: []rules.Delimiter{{Left: "(", Right: ")"}}}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 1 {
+		t.Fatalf("want 1 change, got %+v", ch)
+	}
+	if len(out.Cues) != 1 || out.Cues[0].Lines != "Hello world" {
+		t.Fatalf("got lines %q, want %q", out.Cues[0].Lines, "Hello world")
+	}
+}
+
+func TestApplyAll_postProcess_dropsLinesWithoutLetters(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: "Note: 42"}},
+	}
+	conf := rules.Config{RemoveTextBeforeColon: true}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 1 {
+		t.Fatalf("want one change logged, got %+v", ch)
+	}
+	if len(out.Cues) != 0 {
+		t.Fatalf("numeric-only remainder should drop cue, got %+v", out.Cues)
+	}
+	if ch[0].Transformed != "" {
+		t.Fatalf("transformed should be empty after stripping non-alphabetic lines, got %q", ch[0].Transformed)
+	}
+}
+
+func TestApplyAll_removeTextBeforeColon_lowercaseSpeakerUnchangedWhenUppercaseRuleOnly(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: "Father: Hello"}},
+	}
+	conf := rules.Config{RemoveTextBeforeColonIfUppercase: true, RemoveTextBeforeColon: false}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 0 || len(out.Cues) != 1 || out.Cues[0].Lines != "Father: Hello" {
+		t.Fatalf("uppercase-only rule must not strip mixed-case speaker; ch=%+v cues=%+v", ch, out.Cues)
+	}
+}
+
+func TestApplyAll_ASS_convertThenStripUppercaseSpeaker(t *testing.T) {
+	// Speaker label must not be inside {\i1}…{\i0} or the line no longer matches ^…[A-Z]…: at the start after "<".
+	doc := model.Document{
+		Format: model.SubtitleFormatASS,
+		Cues:   []*model.Cue{{Index: 1, Lines: `NARRATOR: {\i1}Hello{\i0}`}},
+	}
+	conf := rules.Config{RemoveTextBeforeColonIfUppercase: true}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 1 {
+		t.Fatalf("want 1 change, got %+v", ch)
+	}
+	if len(out.Cues) != 1 || out.Cues[0].Lines != "<i>Hello</i>" {
+		t.Fatalf("got %q, want %q", out.Cues[0].Lines, "<i>Hello</i>")
+	}
+}
+
+func Test_removeSingleLineColon_edgeCases(t *testing.T) {
+	t.Run("empty string", func(t *testing.T) {
+		removed, got := removeSingleLineColon("")
+		if removed || got != "" {
+			t.Fatalf("removed=%v got=%q", removed, got)
+		}
+	})
+	t.Run("line is only colon not removed", func(t *testing.T) {
+		removed, got := removeSingleLineColon(":")
+		if removed || got != ":" {
+			t.Fatalf("removed=%v got=%q", removed, got)
+		}
+	})
+	t.Run("whitespace only before colon", func(t *testing.T) {
+		removed, got := removeSingleLineColon("   :")
+		if removed || got != "   :" {
+			t.Fatalf("removed=%v got=%q", removed, got)
+		}
+	})
+}
+
+func Test_removeTextBeforeColon_emptyString(t *testing.T) {
+	removed, got := removeTextBeforeColon("")
+	if removed || got != "" {
+		t.Fatalf("removed=%v got=%q", removed, got)
+	}
+}
+
+func Test_removeUppercaseTextWithColon_emptyString(t *testing.T) {
+	removed, got := removeUppercaseTextWithColon("")
+	if removed || got != "" {
+		t.Fatalf("removed=%v got=%q", removed, got)
+	}
+}
+
+func Test_collapseSpaces(t *testing.T) {
+	if got := collapseSpaces("a    b\t\tc"); got != "a b c" {
+		t.Fatalf("got %q", got)
+	}
+	if got := collapseSpaces("no-extra"); got != "no-extra" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func Test_lineHasAlphabetic(t *testing.T) {
+	if !lineHasAlphabetic("123a") {
+		t.Fatal("expected true for letter")
+	}
+	if lineHasAlphabetic("123") {
+		t.Fatal("expected false for digits only")
+	}
+	if lineHasAlphabetic("…") {
+		t.Fatal("expected false for punctuation only")
+	}
+}
+
+func Test_normalizeRepeatedSingleDelimitersAlgorithm(t *testing.T) {
 	tests := []struct {
 		name string
 		sep  string
@@ -451,5 +679,69 @@ func Test_normalizeRepeatedSingleDelimiters(t *testing.T) {
 				t.Errorf("normalizeRepeatedSingleDelimiters() = not single delimiter: [%v], [%v]", left, right)
 			}
 		})
+	}
+}
+
+func TestApplyAll_removeBetweenDoubledEqualDelimiters_logsChange(t *testing.T) {
+	original := "** Hello some Text **"
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: original}},
+	}
+	conf := rules.Config{RemoveBetweenDelimiters: []rules.Delimiter{{Left: "*", Right: "*"}}}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 1 {
+		t.Fatalf("want 1 change, got %+v", ch)
+	}
+	if len(out.Cues) != 0 {
+		t.Fatalf("text between doubled equal delimiters should be dropped, got %+v", out.Cues)
+	}
+	if ch[0].Rules[0] != string(rules.RuleRemoveBetweenDelimiters)+" * *" {
+		t.Fatalf("unexpected rules: %+v", ch[0].Rules)
+	}
+	if ch[0].Original != original {
+		t.Fatalf("original text should be unchanged, got %q", ch[0].Original)
+	}
+	if ch[0].Transformed != "" {
+		t.Fatalf("transformed text should be empty, got %q", ch[0].Transformed)
+	}
+}
+
+func TestApplyAll_Guard_Lt_Gt_between_Delimiters_logsChange(t *testing.T) {
+	// Guard label must not be inside <i>…</i> or the line no longer matches ^…[A-Z]…: at the start after "<".
+	original := "<i>Hello</i>"
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: original}},
+	}
+	conf := rules.Config{RemoveBetweenDelimiters: []rules.Delimiter{{Left: "<", Right: ">"}}}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 0 {
+		t.Fatalf("want no changes, got %+v", ch)
+	}
+	if len(out.Cues) != 1 || out.Cues[0].Lines != original {
+		t.Fatalf("got %q, want %q", out.Cues[0].Lines, original)
+	}
+}
+
+func TestApplyAll_invalidDelimiterRegex_compileErrorContinues(t *testing.T) {
+	invalid := string([]byte{0xff}) // invalid UTF-8 triggers regexp.Compile error
+	original := "keep (noise) this"
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: original}},
+	}
+	conf := rules.Config{
+		RemoveBetweenDelimiters: []rules.Delimiter{
+			{Left: invalid, Right: ")"},
+			{Left: "(", Right: ")"},
+		},
+	}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 1 {
+		t.Fatalf("want one successful change after invalid delimiter, got %+v", ch)
+	}
+	if len(out.Cues) != 1 || out.Cues[0].Lines != "keep this" {
+		t.Fatalf("unexpected output cues: %+v", out.Cues)
 	}
 }
