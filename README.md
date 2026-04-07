@@ -17,12 +17,13 @@ go build -o subtitle-sanitizer ./cmd/sanitize
 
 ## Usage
 ```bash
-subtitle-sanitizer path/to/file1.srt path/to/file2.srt 
+subtitle-sanitizer path/to/file1.srt path/to/file2.ass 
 ```
 
 Options:
-- `PATH1 [PATH2] [--mkv-extract, -m]`, (default false): try to extract all subtitles from files, or try extract one (eng first) and try to sanitize it
-- 
+- `PATH1 [PATH2] [--mkv-extract, -m]`, (default false): try to extract all subtitles from files only
+
+If mkv file is an arg, tries to extract first substitle (order by eng language, no sdh) and follows sanitization workflow
 
 Output:
 - Saves to `path/to/file-his.srt` or `path/to/file.srt`, depending on overwrite choice
@@ -43,14 +44,13 @@ The same sanitize pipeline is exposed as JSON in/out via `internal/wasmbridge` (
 - Encoding detection & transcoding
 - Batch processing directories
 - Tests & CI
+- MKV subtitle extraction with ffmpeg
+- WASM
 
 ## Notes
 Design emphasizes separation of concerns:
-- `internal/io`: file reading/writing
 - `internal/model`: core data structures
+- `internal/view`: core bubble tea workflow
 - `internal/subtitle`: format-specific parsers/printers
 - `internal/transform`: content transformations
-- `internal/rules`: rules config scaffold
-
-# subtitle-sanitizer
-Dotnet CLI tool to load ASS/SRT subtiles, apply rules to identify and remove text for hearing impaired and other little details. Inspired on  Subtitle Edit that I have to use GUI versinon for easch subtitle :)
+- `internal/rules`: transformation rules config
