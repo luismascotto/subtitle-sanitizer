@@ -57,7 +57,7 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 			for removeLineIfContains := range lstRemoveLineIfContains {
 				if strings.Contains(text, removeLineIfContains) {
 					text = ""
-					rulesApplied = append(rulesApplied, "removeIfContains")
+					rulesApplied = append(rulesApplied, string(rules.RuleRemoveLineIfContains))
 					break
 				}
 			}
@@ -66,19 +66,19 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 			if conf.RemoveSingleLineColon {
 				ruleTriggered, text = removeSingleLineColon(text)
 				if ruleTriggered {
-					rulesApplied = append(rulesApplied, "removeLineColon")
+					rulesApplied = append(rulesApplied, string(rules.RuleRemoveSingleLineColon))
 				}
 			}
 
 			if conf.RemoveTextBeforeColonIfUppercase {
 				ruleTriggered, text = removeUppercaseTextWithColon(text)
 				if ruleTriggered {
-					rulesApplied = append(rulesApplied, "TEXT:")
+					rulesApplied = append(rulesApplied, string(rules.RuleRemoveTextBeforeColonIfUppercase))
 				}
 			} else if conf.RemoveTextBeforeColon {
 				ruleTriggered, text = removeTextBeforeColon(text)
 				if ruleTriggered {
-					rulesApplied = append(rulesApplied, "text:")
+					rulesApplied = append(rulesApplied, string(rules.RuleRemoveTextBeforeColon))
 				}
 			}
 		}
@@ -113,7 +113,7 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 				}
 				if re.MatchString(text) {
 					ruleTriggered = true
-					rulesApplied = append(rulesApplied, "removeDelims "+delimiter.Left+" "+delimiter.Right)
+					rulesApplied = append(rulesApplied, string(rules.RuleRemoveBetweenDelimiters)+" "+delimiter.Left+" "+delimiter.Right)
 					text = strings.TrimSpace(re.ReplaceAllString(text, ""))
 					if text == "" {
 						// Skip unnecessary RemoveBetweenDelimiters rule processing

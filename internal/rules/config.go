@@ -8,8 +8,8 @@ import (
 )
 
 // Config captures transformation rules.
-// RemoveUppercaseColonWords: usually to refer to a specific person or thing that is not appearing in the scene. eg: "GUARD 2: Hey!", "KAREN: Hello!"
 // RemoveSingleLineColon: remove any line that ends with ":" and has 3 or fewer words (case-insensitive). eg: "That woman said:", "This is a special release:"
+// RemoveTextBeforeColon(if uppercase explicitly specified): usually to refer to a specific person or thing that is not appearing in the scene. eg: "Father: Hi son!", "GUARD 2: Hey!", "KAREN: Hello!"
 // RemoveBetweenDelimiters: remove text between delimiters. eg: (tyres screeching), [bird chirping]
 // RemoveLineIfContains: remove line if it contains the specified text. Used when some subtitles don't follow common rules or patterns. eg: "tense music * (should be [tense music])"
 type Config struct {
@@ -104,3 +104,14 @@ func (c *Config) SaveToBackupFile(jsonData []byte) error {
 	}
 	return nil
 }
+
+// Rules description/enumerator
+type AbbreviatedRuleDescription string
+
+const (
+	RuleRemoveTextBeforeColonIfUppercase AbbreviatedRuleDescription = "TEXT:"
+	RuleRemoveTextBeforeColon            AbbreviatedRuleDescription = "Text:"
+	RuleRemoveSingleLineColon            AbbreviatedRuleDescription = "[Line]:"
+	RuleRemoveBetweenDelimiters          AbbreviatedRuleDescription = "\\ Delims /"
+	RuleRemoveLineIfContains             AbbreviatedRuleDescription = "%Contains%"
+)
