@@ -149,7 +149,10 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 				Rules:       append([]string(nil), rulesApplied...),
 			})
 		}
-		out.Cues = append(out.Cues, newCue)
+		if text != "" {
+			out.Cues = append(out.Cues, newCue)
+		}
+		//out.Cues = append(out.Cues, newCue)
 	}
 
 	// Indexing is re-assigned during SRT formatting
