@@ -10,7 +10,6 @@ import (
 
 func TestProcess_minimalSRT(t *testing.T) {
 	req := `{
-		"format": "srt",
 		"subtitle": "1\n00:00:01,000 --> 00:00:02,000\nHello (x) world\n\n"
 	}`
 	out := Process([]byte(req))
@@ -57,11 +56,11 @@ func TestProcess_fullAssGolden(t *testing.T) {
 	}
 
 	body, err := json.Marshal(struct {
-		Format   string          `json:"format"`
+		// Format   string          `json:"format"`
 		Subtitle string          `json:"subtitle"`
 		Config   json.RawMessage `json:"config"`
 	}{
-		Format:   "ass",
+		// Format:   "ass",
 		Subtitle: string(ass),
 		Config:   json.RawMessage(strings.TrimSpace(string(cfgBytes))),
 	})

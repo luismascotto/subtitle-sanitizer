@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/luismascotto/subtitle-sanitizer/internal/model"
@@ -14,12 +15,14 @@ import (
 	"github.com/luismascotto/subtitle-sanitizer/internal/transform"
 )
 
+const marshallEror string = `{"ok":false,"error":"marshal response failed"}`
+
 // Request is the JSON body consumed by [Process].
 type Request struct {
-	Subtitle    string          `json:"subtitle"`
-	SubtitleB64 string          `json:"subtitleB64"`
-	Format      string          `json:"format"`
-	Config      json.RawMessage `json:"config"`
+	Subtitle    string `json:"subtitle"`
+	SubtitleB64 string `json:"subtitleB64"`
+	//Format      string          `json:"format"`
+	Config json.RawMessage `json:"config"`
 }
 
 // Response is the JSON returned by [Process].
@@ -34,27 +37,30 @@ type Response struct {
 func Process(body []byte) []byte {
 	var req Request
 	if err := json.Unmarshal(body, &req); err != nil {
-		return mustJSON(Response{OK: false, Error: fmt.Sprintf("json: %v", err)})
+		return mustJSONErrStr(fmt.Sprintf("json: %v", err))
+	}
+	var (
+		err    error
+		raw    []byte
+		format model.SubtitleFormat
+		conf   rules.Config
+		res    sanitize.Result
+	)
+
+	if raw, err = subtitleBytes(&req); err != nil {
+		return mustJSONErr(err)
 	}
 
-	raw, err := subtitleBytes(&req)
-	if err != nil {
-		return mustJSON(Response{OK: false, Error: err.Error()})
+	if format, err = parseFormat(req.Subtitle[:min(1024, len(raw))]); err != nil {
+		return mustJSONErr(err)
 	}
 
-	format, err := parseFormat(req.Format)
-	if err != nil {
-		return mustJSON(Response{OK: false, Error: err.Error()})
+	if conf, err = configFromJSON(req.Config); err != nil {
+		return mustJSONErr(err)
 	}
 
-	conf, err := configFromJSON(req.Config)
-	if err != nil {
-		return mustJSON(Response{OK: false, Error: err.Error()})
-	}
-
-	res, err := sanitize.ParseAndApply(raw, format, conf)
-	if err != nil {
-		return mustJSON(Response{OK: false, Error: err.Error()})
+	if res, err = sanitize.ParseAndApply(raw, format, conf); err != nil {
+		return mustJSONErr(err)
 	}
 
 	out := Response{
@@ -75,17 +81,42 @@ func subtitleBytes(req *Request) ([]byte, error) {
 	return nil, fmt.Errorf("subtitle or subtitleB64 is required")
 }
 
-func parseFormat(s string) (model.SubtitleFormat, error) {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "srt":
-		return model.SubtitleFormatSRT, nil
-	case "ass":
+func parseFormat(peekSubtitle string) (model.SubtitleFormat, error) {
+	//Happy path first no allocation (almost)
+	//check on body for ASS
+	if strings.HasPrefix(peekSubtitle, "[Script Info]") {
 		return model.SubtitleFormatASS, nil
-	case "":
-		return 0, fmt.Errorf("format is required (srt or ass)")
-	default:
-		return 0, fmt.Errorf("format must be srt or ass, got %q", s)
 	}
+
+	ix := strings.Index(peekSubtitle, "[Events]")
+	if ix > 13 && strings.Index(peekSubtitle, "Dialogue: ") > ix {
+		return model.SubtitleFormatASS, nil
+	}
+	//Assume SRT?
+	//SplitN 5 => up to 5 substrings from sep.
+	// SRT is index \n 00:00:02,136 --> 00:00:04,238 \n some text \n NewLine \n index2....
+	// Assuming a few possible nemlines empty on beginning and up to 3 lines,
+	// I need 9 splitteds X,X,1,00:,text,text,text,empty,[the_rest]
+
+	splittedN := strings.SplitN(peekSubtitle, "\n", 9)
+	ix = 0
+	for i := range splittedN {
+		if len(splittedN[i]) > 0 {
+			ix += 1
+			// Two first columns to convert to int of find 00:..
+			if ix <= 2 {
+				if safeInt(splittedN[i]) > 0 {
+					return model.SubtitleFormatSRT, nil
+				}
+				if strings.HasPrefix(strings.TrimSpace(splittedN[i]), "00:") {
+					return model.SubtitleFormatSRT, nil
+				}
+			} else {
+				break
+			}
+		}
+	}
+	return model.SubtitleFormatUnknown, nil
 }
 
 func configFromJSON(raw json.RawMessage) (rules.Config, error) {
@@ -99,7 +130,19 @@ func configFromJSON(raw json.RawMessage) (rules.Config, error) {
 func mustJSON(v Response) []byte {
 	b, err := json.Marshal(v)
 	if err != nil {
-		return []byte(`{"ok":false,"error":"marshal response failed"}`)
+		return []byte(marshallEror)
 	}
 	return b
+}
+
+func mustJSONErrStr(s string) []byte {
+	return mustJSON(Response{OK: false, Error: s})
+}
+func mustJSONErr(e error) []byte {
+	return mustJSONErrStr(e.Error())
+}
+
+func safeInt(s string) int {
+	v, _ := strconv.Atoi(s)
+	return v
 }
