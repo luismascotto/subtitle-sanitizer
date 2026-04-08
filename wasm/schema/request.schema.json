@@ -3,7 +3,7 @@
   "$id": "https://github.com/luismascotto/subtitle-sanitizer/wasm/request.schema.json",
   "title": "subtitle-sanitizer WASM request",
   "type": "object",
-  "required": ["format"],
+  "required": ["subtitle"],
   "properties": {
     "subtitle": {
       "type": "string",
@@ -12,10 +12,6 @@
     "subtitleB64": {
       "type": "string",
       "description": "Standard base64 of subtitle bytes; used if non-empty (overrides subtitle)."
-    },
-    "format": {
-      "type": "string",
-      "enum": ["srt", "ass"]
     },
     "config": {
       "description": "Rules JSON (same shape as config.json). Omit, null, or {} for built-in defaults.",

@@ -2,133 +2,139 @@
 <html lang="en">
 
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>subtitle-sanitizer · WASM demo</title>
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      max-width: 52rem;
-      margin: 1rem auto;
-      padding: 0 1rem;
-    }
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>subtitle-sanitizer · WASM demo</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 52rem;
+            margin: 1rem auto;
+            padding: 0 1rem;
+        }
 
-    label {
-      display: block;
-      margin-top: 0.75rem;
-      font-weight: 600;
-    }
+        label {
+            display: block;
+            margin-top: 0.75rem;
+            font-weight: 600;
+        }
 
-    textarea,
-    select {
-      width: 100%;
-      box-sizing: border-box;
-      font-family: ui-monospace, monospace;
-      font-size: 0.85rem;
-    }
+        textarea,
+        select {
+            width: 100%;
+            box-sizing: border-box;
+            font-family: ui-monospace, monospace;
+            font-size: 0.85rem;
+        }
 
 
-    textarea {
-      min-height: 10rem;
-    }
+        textarea {
+            min-height: 10rem;
+        }
 
-    #cfg {
-      min-height: 8rem;
-    }
+        #cfg {
+            min-height: 8rem;
+        }
 
-    button,
-    input {
-      margin-top: 0.75rem;
-      padding: 0.4rem 1rem;
-    }
+        button,
+        input {
+            margin-top: 0.75rem;
+            padding: 0.4rem 1rem;
+        }
 
-    #status,
-    #fileName {
-      color: #666;
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-    }
+        #subtitleFile {
+            margin-top: 0.5rem;
+            padding: 0.2rem 0rem;
+        }
 
-    #out {
-      white-space: pre-wrap;
-      background: #f4f4f5;
-      padding: 1rem;
-      border-radius: 6px;
-      margin-top: 1rem;
-    } 
-    
-    #drop-zone {
-      border: 1px dashed #666;
-    }
+        #status,
+        #fileName {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
 
-    .row {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-      align-items: center;
-      margin-top: 0.5rem;
-    }
+        #out {
+            white-space: pre-wrap;
+            background: #f4f4f5;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
 
-    .upload {
-      background-color: #ccc;
-      padding: 0.4rem 1rem;
-      border-radius: 0.5rem;
-      border: 1px solid #666;
-      font-size: 0.8rem;
-      height: 2.5rem;
-      margin-top: 0.5rem;
-      width: 15%;
-    }
+        #drop-zone {
+            border: 1px dashed #666;
+        }
 
-    .upload:hover {
-      background-color: #aaa;
-      color: white;
-    }
+        .row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
 
-    .upload:active {
-      background-color: #888;
-      color: white;
-    }
-  </style>
+        .upload {
+            background-color: #ccc;
+            padding: 0.4rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #666;
+            font-size: 0.8rem;
+            height: 2.5rem;
+            margin-top: 0.5rem;
+            width: 15%;
+        }
+
+        .upload:hover {
+            background-color: #aaa;
+            color: white;
+        }
+
+        .upload:active {
+            background-color: #888;
+            color: white;
+        }
+    </style>
 </head>
-<form>
+<form id="form">
 
-  <body>
-    <h1>subtitle-sanitizer (WASM)</h1>
+    <body>
+        <h1>subtitle-sanitizer (WASM)</h1>
 
-    <div class="row">
-      <label>WASM binary
-        <select id="wasmChoice" disabled>
-          <option value="sanitize-go.wasm">sanitize-go.wasm (official Go)</option>
-          <option value="sanitize-tinygo.wasm">sanitize-tinygo.wasm (TinyGo, if built)</option>
-        </select>
-      </label>
-    </div>
+        <div class="row">
+            <label>WASM binary
+                <select id="wasmChoice" disabled>
+                    <option value="sanitize-go.wasm">sanitize-go.wasm (official Go)</option>
+                    <option value="sanitize-tinygo.wasm">sanitize-tinygo.wasm (TinyGo, if built)</option>
+                </select>
+            </label>
+        </div>
 
-    <label>Format
-      <select id="fmt">
-        <option value=".srt">srt</option>
-        <option value=".ass">ass</option>
-      </select>
-    </label>
+        <!-- <label>Drag and drop subtitle file into any area of the form or click to upload. You can also paste the subtitle text into the textarea below. -->
+        <!-- <select id="fmt">
+                <option value=".srt">srt</option>
+                <option value=".ass">ass</option>
+            </select> -->
+        <!-- </label> -->
 
-    <div id="drop-zone"> Drop subtitle file here or click to upload
-      <div class="upload">
+
+
+
+
+
+        <label>Subtitle text (<code>subtitle</code> field — UTF-8)
+            <textarea id="sub" spellcheck="false" placeholder="Drag and drop subtitle file into any area of the form or click to upload.
+You can also paste the subtitle text into the textarea below."></textarea>
+        </label>
+
+        <!-- <div class="upload"> -->
         <label for="subtitleFile">Upload subtitle file</label>
-        <input type="file" id="subtitleFile" name="subtitleFile" accept=".srt" />
-      </div>
-    </div>
+        <input type="file" id="subtitleFile" name="subtitleFile" accept=".srt,.ass,.txt" />
+        <!-- </div> -->
 
 
-
-    <label>Subtitle text (<code>subtitle</code> field — UTF-8)
-      <textarea id="sub" spellcheck="false">1
-00:00:01,000 --> 00:00:02,000
-Hello (noise) world</textarea>
-    </label>
-
-    <label>Rules JSON (<code>config</code> — use <code>{}</code> for defaults)
-      <textarea id="cfg" spellcheck="false">{
+        <label>Rules JSON (<code>config</code> — use <code>{}</code> for defaults)
+            <textarea id="cfg" spellcheck="false">{
   "removeTextBeforeColonIfUppercase": true,
   "removeSingleLineColon": true,
   "removeBetweenDelimiters": [{
@@ -150,154 +156,154 @@ Hello (noise) world</textarea>
   ],
   "removeLineIfContains": " music *\n music ♪"
 }</textarea>
-    </label>
+        </label>
 
-    <button type="button" id="run" disabled>Process</button>
-    <div id="status">Loading WASM…</div>
+        <button type="button" id="run" disabled>Process</button>
+        <div id="status">Loading WASM…</div>
 
-    <h2>Output subtitle (.srt)</h2>
-    <textarea id="srtOut" spellcheck="false" placeholder="Processed SRT will appear here"></textarea>
-    <div id="fileName"></div>
-    <button type="button" id="download" disabled>Download .srt</button>
+        <h2>Output subtitle (.srt)</h2>
+        <textarea id="srtOut" spellcheck="false" placeholder="Processed SRT will appear here"></textarea>
+        <div id="fileName"></div>
+        <button type="button" id="download" disabled>Download .srt</button>
 
-    <h2>Rules triggered (JSON)</h2>
-    <pre id="out"></pre>
+        <h2>Rules triggered (JSON)</h2>
+        <pre id="out"></pre>
 </form>
 <script src="./wasm_exec.js"></script>
 <script>
-  const statusEl = document.getElementById("status");
-  const outEl = document.getElementById("out");
-  const runBtn = document.getElementById("run");
-  const downloadBtn = document.getElementById("download");
-  const wasmChoice = document.getElementById("wasmChoice");
-  const inputFile = document.querySelector("input");
-  const formatSelect = document.getElementById("fmt");
-  const fileName = document.getElementById("fileName");
-  const dropZone = document.getElementById('drop-zone');
-  // const input = document.querySelector("input");
-  inputFile.style.opacity = 0;
+    const statusEl = document.getElementById("status");
+    const outEl = document.getElementById("out");
+    const runBtn = document.getElementById("run");
+    const downloadBtn = document.getElementById("download");
+    const wasmChoice = document.getElementById("wasmChoice");
+    const inputFile = document.querySelector("input");
+    //const formatSelect = document.getElementById("fmt");
+    const fileName = document.getElementById("fileName");
+    const dropZone = document.getElementById('form');
+    // const input = document.querySelector("input");
+    //inputFile.style.opacity = 0;
 
-  const go = new Go();
-  let ready = false;
+    const go = new Go();
+    let ready = false;
 
-  async function loadWasm() {
-    const name = wasmChoice.value;
-    statusEl.textContent = "Fetching " + name + "…";
-    outEl.textContent = "";
-    runBtn.disabled = true;
-    ready = false;
-    try {
-      const res = await fetch("./" + name);
-      if (!res.ok) throw new Error(res.status + " " + res.statusText + " for " + name);
-      const result = await WebAssembly.instantiateStreaming(res, go.importObject);
-      go.run(result.instance);
-      ready = true;
-      runBtn.disabled = false;
-      statusEl.textContent = "Ready (" + name + ").";
-    } catch (e) {
-      statusEl.textContent = "Error: " + e;
-      outEl.textContent = String(e);
+    async function loadWasm() {
+        const name = wasmChoice.value;
+        statusEl.textContent = "Fetching " + name + "…";
+        outEl.textContent = "";
+        runBtn.disabled = true;
+        ready = false;
+        try {
+            const res = await fetch("./" + name);
+            if (!res.ok) throw new Error(res.status + " " + res.statusText + " for " + name);
+            const result = await WebAssembly.instantiateStreaming(res, go.importObject);
+            go.run(result.instance);
+            ready = true;
+            runBtn.disabled = false;
+            statusEl.textContent = "Ready (" + name + ").";
+        } catch (e) {
+            statusEl.textContent = "Error: " + e;
+            outEl.textContent = String(e);
+        }
     }
-  }
 
-  wasmChoice.addEventListener("change", loadWasm);
+    wasmChoice.addEventListener("change", loadWasm);
 
-  runBtn.addEventListener("click", () => {
-    if (!ready) return;
-    try {
-      let cfgRaw = document.getElementById("cfg").value.trim();
-      if (cfgRaw === "") cfgRaw = "{}";
-      const body = {
-        format: document.getElementById("fmt").value.slice(1),
-        subtitle: document.getElementById("sub").value,
-        config: JSON.parse(cfgRaw),
-      };
-      const raw = globalThis.subtitleSanitizerProcess(JSON.stringify(body));
-      let resp;
-      try {
-        resp = JSON.parse(typeof raw === "string" ? raw : String(raw));
-      } catch (parseErr) {
-        outEl.textContent = "Failed to parse JSON response: " + parseErr + "\n\nRaw:\n" + String(raw);
-        downloadBtn.disabled = true;
-        return;
-      }
-      if (!resp || resp.ok === false) {
-        statusEl.textContent = "Error from sanitizer";
-        outEl.textContent = JSON.stringify(resp, null, 2);
-        downloadBtn.disabled = true;
-        return;
-      }
-      const srt = resp.srt || "";
-      document.getElementById("srtOut").value = srt;
-      downloadBtn.disabled = !srt;
-      outEl.textContent = resp.changes ? JSON.stringify(resp.changes, null, 2) : "";
-      statusEl.textContent = "OK (" + (resp.changes ? resp.changes.length : 0) + " changes)";
-    } catch (e) {
-      outEl.textContent = String(e);
-      downloadBtn.disabled = true;
+    runBtn.addEventListener("click", () => {
+        if (!ready) return;
+        try {
+            let cfgRaw = document.getElementById("cfg").value.trim();
+            if (cfgRaw === "") cfgRaw = "{}";
+            const body = {
+                //format: document.getElementById("fmt").value.slice(1),
+                subtitle: document.getElementById("sub").value,
+                config: JSON.parse(cfgRaw),
+            };
+            const raw = globalThis.subtitleSanitizerProcess(JSON.stringify(body));
+            let resp;
+            try {
+                resp = JSON.parse(typeof raw === "string" ? raw : String(raw));
+            } catch (parseErr) {
+                outEl.textContent = "Failed to parse JSON response: " + parseErr + "\n\nRaw:\n" + String(raw);
+                downloadBtn.disabled = true;
+                return;
+            }
+            if (!resp || resp.ok === false) {
+                statusEl.textContent = "Error from sanitizer";
+                outEl.textContent = JSON.stringify(resp, null, 2);
+                downloadBtn.disabled = true;
+                return;
+            }
+            const srt = resp.srt || "";
+            document.getElementById("srtOut").value = srt;
+            downloadBtn.disabled = !srt;
+            outEl.textContent = resp.changes ? JSON.stringify(resp.changes, null, 2) : "";
+            statusEl.textContent = "OK (" + (resp.changes ? resp.changes.length : 0) + " changes)";
+        } catch (e) {
+            outEl.textContent = String(e);
+            downloadBtn.disabled = true;
+        }
+    });
+
+    downloadBtn.addEventListener("click", () => {
+        const srt = document.getElementById("srtOut").value;
+        if (!srt) return;
+        const blob = new Blob([srt], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+
+        const filename = fileName.textContent;
+        if (!filename) {
+            a.download = "subtitle-sanitized.srt";
+        } else {
+            a.download = filename.slice(0, -4) + "-sanitized.srt";
+        }
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    });
+
+    /* input file stufff */
+    // 1. Prevent default behaviors for drag events
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    // 2. Handle the drop event
+    dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files; // Access dropped files
+        if (files.length > 0) {
+            readFileContent(files[0]);
+        }
+    });
+
+    function readFileContent(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById("sub").value = e.target.result;
+        };
+        reader.readAsText(file);
+        fileName.textContent = file.name;
     }
-  });
 
-  downloadBtn.addEventListener("click", () => {
-    const srt = document.getElementById("srtOut").value;
-    if (!srt) return;
-    const blob = new Blob([srt], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
+    // formatSelect.addEventListener("change", (event) => {
+    //     const value = event.target.value;
+    //     if (value === "") return;
+    //     inputFile.accept = value;
+    // });
 
-    const filename = fileName.textContent;
-    if (!filename) {
-      a.download = "subtitle-sanitized.srt";
-    } else {
-      a.download = filename.slice(0, -4) + "-sanitized.srt";
-    }
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  });
+    inputFile.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            readFileContent(file);
+        }
+    });
 
-  /* input file stufff */
-  // 1. Prevent default behaviors for drag events
-  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    }, false);
-  });
-
-  // 2. Handle the drop event
-  dropZone.addEventListener('drop', (e) => {
-    const files = e.dataTransfer.files; // Access dropped files
-    if (files.length > 0) {
-      readFileContent(files[0]);
-    }
-  });
-
-  function readFileContent(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      document.getElementById("sub").value = e.target.result;
-    };
-    reader.readAsText(file);
-    fileName.textContent = file.name;
-  }
-
-  formatSelect.addEventListener("change", (event) => {
-    const value = event.target.value;
-    if (value === "") return;
-    inputFile.accept = value;
-  });
-
-  inputFile.addEventListener("change", (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      readFileContent(file);
-    }
-  });
-
-  loadWasm();
+    loadWasm();
 </script>
 </body>
 
