@@ -25,6 +25,7 @@ func ParseASS(data []byte) (*model.Document, error) {
 	cues := []*model.Cue{}
 	var err error
 	for _, blk := range blocks {
+		fmt.Println(blk)
 		if len(blk) == 0 {
 			continue
 		}
@@ -55,6 +56,7 @@ func ParseASS(data []byte) (*model.Document, error) {
 func splitASSBlocks(data []byte) [][]string {
 	// Normalize newlines
 	s := strings.ReplaceAll(string(data), "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\x00", "\n")
 	parts := strings.Split(s, "\n\n")
 	out := make([][]string, 0, len(parts))
 	for _, p := range parts {
