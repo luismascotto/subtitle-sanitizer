@@ -25,7 +25,6 @@ func ParseASS(data []byte) (*model.Document, error) {
 	cues := []*model.Cue{}
 	var err error
 	for _, blk := range blocks {
-		fmt.Println(blk)
 		if len(blk) == 0 {
 			continue
 		}
