@@ -84,44 +84,7 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 		}
 
 		if text != "" && len(conf.RemoveBetweenDelimiters) > 0 {
-			for _, delimiter := range conf.RemoveBetweenDelimiters {
-				// If delimiters are equal, try to normalize repetitions of the same delimites (ex: ♪♪ text ♪♪ -> ♪ text ♪)
-				if utf8.RuneCountInString(delimiter.Left) == 1 && delimiter.Left == delimiter.Right {
-					text = strings.ReplaceAll(text, delimiter.Left+delimiter.Left, delimiter.Left)
-				}
-				controlEscape := ""
-				// ASS format is transformed to SRT format, so we don't need to guard for '{'
-				// if delimiter.Left == "{" {
-				// 	// ASS format uses curly braces for formatting (italic, bold, etc.), {\i1}Text{\i0}
-				// 	controlEscape = "\\"
-				// }
-				minContentLen := 0
-				if delimiter.Left == "<" {
-					// SRT format uses angle brackets for formatting (italic, bold, etc.), <i>Text</i>
-					// also <font=xxx>Text</font>
-					minContentLen = 3
-					controlEscape = "/="
-				}
-				// Quote delimiter literals to avoid regex meta interpretation.
-				left := regexp.QuoteMeta(delimiter.Left)
-				right := regexp.QuoteMeta(delimiter.Right)
-				// Use a negated character class against the right delimiter (assumed single rune)
-				// to avoid greedy cross-boundary removal; replace all occurrences.
-				re, err := regexp.Compile(fmt.Sprintf(`%s[^%s%s]{%d,}%s`, left, controlEscape, right, minContentLen, right))
-				if err != nil {
-					fmt.Println("Error compiling regex:", err, "for delimiter:", delimiter)
-					continue
-				}
-				if re.MatchString(text) {
-					ruleTriggered = true
-					rulesApplied = append(rulesApplied, string(rules.RuleRemoveBetweenDelimiters)+" "+delimiter.Left+" "+delimiter.Right)
-					text = strings.TrimSpace(re.ReplaceAllString(text, ""))
-					if text == "" {
-						// Skip unnecessary RemoveBetweenDelimiters rule processing
-						break
-					}
-				}
-			}
+			text, rulesApplied = removeTextBetweenDelimiters(text, conf.RemoveBetweenDelimiters, rulesApplied)
 		}
 
 		if text != "" && len(rulesApplied) > 0 {
@@ -160,6 +123,57 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 
 	// Indexing is re-assigned during SRT formatting
 	return out, changes
+}
+
+func removeTextBetweenDelimiters(text string, delimiters []rules.Delimiter, rulesApplied []string) (string, []string) {
+	// Rerun delimiter scan if any rule was triggered for recursive processing.
+	for {
+		ruleTriggered := false
+
+		for _, delimiter := range delimiters {
+			// If delimiters are equal, try to normalize repetitions of the same delimites (ex: ♪♪ text ♪♪ -> ♪ text ♪)
+			if utf8.RuneCountInString(delimiter.Left) == 1 && delimiter.Left == delimiter.Right {
+				text = strings.ReplaceAll(text, delimiter.Left+delimiter.Left, delimiter.Left)
+			}
+			controlEscape := ""
+			// ASS format is transformed to SRT format, so we don't need to guard for '{'
+			// if delimiter.Left == "{" {
+			// 	// ASS format uses curly braces for formatting (italic, bold, etc.), {\i1}Text{\i0}
+			// 	controlEscape = "\\"
+			// }
+			minContentLen := 0
+			if delimiter.Left == "<" {
+				// SRT format uses angle brackets for formatting (italic, bold, etc.), <i>Text</i>
+				// also <font=xxx>Text</font>
+				minContentLen = 3
+				controlEscape = "/="
+			}
+			// Quote delimiter literals to avoid regex meta interpretation.
+			left := regexp.QuoteMeta(delimiter.Left)
+			right := regexp.QuoteMeta(delimiter.Right)
+			// Use a negated character class against the right delimiter (assumed single rune)
+			// to avoid greedy cross-boundary removal; replace all occurrences.
+			re, err := regexp.Compile(fmt.Sprintf(`%s[^%s%s]{%d,}%s`, left, controlEscape, right, minContentLen, right))
+			if err != nil {
+				fmt.Println("Error compiling regex:", err, "for delimiter:", delimiter)
+				continue
+			}
+			if re.MatchString(text) {
+				ruleTriggered = true
+				rulesApplied = append(rulesApplied, string(rules.RuleRemoveBetweenDelimiters)+" "+delimiter.Left+" "+delimiter.Right)
+				text = strings.TrimSpace(re.ReplaceAllString(text, ""))
+				if text == "" {
+					// Skip unnecessary RemoveBetweenDelimiters rule processing
+					break
+				}
+			}
+		}
+
+		if !ruleTriggered || text == "" {
+			break
+		}
+	}
+	return text, rulesApplied
 }
 
 // MarkdownRows renders cue changes as markdown table body rows (no header).

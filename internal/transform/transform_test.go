@@ -3,6 +3,7 @@ package transform
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -762,5 +763,62 @@ func TestApplyAll_leftover_logsChange(t *testing.T) {
 	}
 	if ch[0].Rules[0] != string(rules.RuleRemoveBetweenDelimiters)+" ♪ ♪" {
 		t.Fatalf("unexpected rules: %+v", ch[0].Rules)
+	}
+}
+
+func Test_removeTextBetweenDelimiters_recursiveProcessing(t *testing.T) {
+	delimiters := []rules.Delimiter{{Left: "(", Right: ")"}, {Left: "[", Right: "]"}, {Left: "{", Right: "}"}, {Left: "*", Right: "*"}, {Left: "<", Right: ">"}}
+	rulesApplied := []string{}
+	tests := []struct {
+		name string
+		s    string
+		want string
+	}{
+		{
+			name: "remove between delimiters",
+			s:    "Hello (world) [world] {world} *world* <world>",
+			want: "Hello",
+		},
+		{
+			name: "remove between nested delimiters",
+			s:    "Hello [world(world)] ",
+			want: "Hello",
+		},
+		{
+			name: "remove between nested delimiters multiple times",
+			s:    "Hello {<world*world(world)*>}",
+			want: "Hello",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := removeTextBetweenDelimiters(tt.s, delimiters, rulesApplied)
+			if got != tt.want {
+				t.Errorf("removeBetweenDelimiters() = [%v], want [%v]", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestApplyAll_removeBetweenDelimiters_recursiveProcessing(t *testing.T) {
+	original := "Hello (world) [world] {world} *world* <world>"
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: original}},
+	}
+	conf := rules.Config{RemoveBetweenDelimiters: []rules.Delimiter{{Left: "(", Right: ")"}, {Left: "[", Right: "]"}, {Left: "{", Right: "}"}, {Left: "*", Right: "*"}, {Left: "<", Right: ">"}}}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 1 {
+		t.Fatalf("want 1 change, got %+v", ch)
+	}
+	if len(out.Cues) != 1 || out.Cues[0].Lines != "Hello" {
+		t.Fatalf("got %q, want %q", out.Cues[0].Lines, "Hello")
+	}
+	// Check if the rules are correct (in any order)
+	expectedRules := []string{string(rules.RuleRemoveBetweenDelimiters) + " ( )", string(rules.RuleRemoveBetweenDelimiters) + " [ ]", string(rules.RuleRemoveBetweenDelimiters) + " { }", string(rules.RuleRemoveBetweenDelimiters) + " * *", string(rules.RuleRemoveBetweenDelimiters) + " < >"}
+	for _, rule := range expectedRules {
+		if !slices.Contains(ch[0].Rules, rule) {
+			t.Fatalf("rule not found: %+v", ch[0].Rules)
+		}
 	}
 }
