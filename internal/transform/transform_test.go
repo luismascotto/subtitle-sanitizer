@@ -745,3 +745,22 @@ func TestApplyAll_invalidDelimiterRegex_compileErrorContinues(t *testing.T) {
 		t.Fatalf("unexpected output cues: %+v", out.Cues)
 	}
 }
+
+func TestApplyAll_leftover_logsChange(t *testing.T) {
+	original := "- ♪ text \n other text ♪"
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues:   []*model.Cue{{Index: 1, Lines: original}},
+	}
+	conf := rules.Config{RemoveBetweenDelimiters: []rules.Delimiter{{Left: "♪", Right: "♪"}}}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 1 {
+		t.Fatalf("want 1 change, got %+v", ch)
+	}
+	if len(out.Cues) != 0 {
+		t.Fatalf("leftover delimiters should be dropped, got %+v", out.Cues)
+	}
+	if ch[0].Rules[0] != string(rules.RuleRemoveBetweenDelimiters)+" ♪ ♪" {
+		t.Fatalf("unexpected rules: %+v", ch[0].Rules)
+	}
+}

@@ -150,6 +150,8 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 				Rules:       append([]string(nil), rulesApplied...),
 			})
 		}
+
+		// Only add newCue to out.Cues if text is not empty
 		if text != "" {
 			out.Cues = append(out.Cues, newCue)
 		}
