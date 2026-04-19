@@ -176,6 +176,23 @@ func removeTextBetweenDelimiters(text string, delimiters []rules.Delimiter, rule
 	return text, rulesApplied
 }
 
+func RemoveTextBetweenOpenCloseMatchingDelimiter(text string, delimiter rules.Delimiter, rulesApplied []string) (string, []string) {
+	// Remove text between open and close matching delimiter
+	for {
+		lastLeftIndex := strings.LastIndex(text, delimiter.Left)
+		if lastLeftIndex == -1 {
+			break
+		}
+		firstRightAfterLeft := strings.Index(text[lastLeftIndex:], delimiter.Right)
+		if firstRightAfterLeft == -1 {
+			break
+		}
+		text = strings.TrimSpace(text[:lastLeftIndex] + text[lastLeftIndex+firstRightAfterLeft+len(delimiter.Right):])
+		rulesApplied = append(rulesApplied, string(rules.RuleRemoveBetweenDelimiters)+" "+delimiter.Left+" "+delimiter.Right)
+	}
+	return text, rulesApplied
+}
+
 // MarkdownRows renders cue changes as markdown table body rows (no header).
 func MarkdownRows(entries []CueChange) string {
 	if len(entries) == 0 {

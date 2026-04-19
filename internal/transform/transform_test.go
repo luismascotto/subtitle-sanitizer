@@ -822,3 +822,27 @@ func TestApplyAll_removeBetweenDelimiters_recursiveProcessing(t *testing.T) {
 		}
 	}
 }
+
+func Test_RemoveTextBetweenOpenCloseMatchingDelimiter(t *testing.T) {
+	delimiter := rules.Delimiter{Left: "(", Right: ")"}
+	rulesApplied := []string{}
+	tests := []struct {
+		name string
+		s    string
+		want string
+	}{
+		{
+			name: "remove text between open and close matching delimiter nested",
+			s:    "Hello ((world)(world(world))((world)world))",
+			want: "Hello",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := RemoveTextBetweenOpenCloseMatchingDelimiter(tt.s, delimiter, rulesApplied)
+			if got != tt.want {
+				t.Errorf("RemoveTextBetweenOpenCloseMatchingDelimiter() = [%v], want [%v]", got, tt.want)
+			}
+		})
+	}
+}
