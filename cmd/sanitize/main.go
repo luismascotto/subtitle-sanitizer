@@ -210,7 +210,7 @@ func RenderTransformations(rulesDisplay string, inputPath string, doc *model.Doc
 	if err != nil {
 		exitWithErr(fmt.Errorf("run tea program: %w", err))
 	}
-	time.Sleep(1 * time.Second)
+	//time.Sleep(1 * time.Second)
 	return res.Document, retModel
 }
 
