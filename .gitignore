@@ -5,6 +5,7 @@ dist/
 *.exe
 *.test
 *.out
+config*.json
 
 # IDE
 .vscode/
