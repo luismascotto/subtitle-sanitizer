@@ -658,7 +658,8 @@ func Test_isAllCapsLine(t *testing.T) {
 		{name: "mixed case", in: "Hello WORLD", want: false},
 		{name: "lowercase", in: "hello", want: false},
 		{name: "digits and punctuation only", in: "123 !?", want: false},
-		{name: "unicode uppercase", in: "AÇÃO", want: true},
+		{name: "unicode uppercase", in: "AÇÃO", want: false},
+		{name: "unicode uppercase", in: "EXPLOSÃO BARULHENTA", want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
