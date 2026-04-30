@@ -41,6 +41,10 @@ func titleContainsSDH(title string) bool {
 	return strings.Contains(strings.ToLower(title), "sdh")
 }
 
+func titleContainsForced(title string) bool {
+	return strings.Contains(strings.ToLower(title), "forced")
+}
+
 // subtitleTrackOrders reports whether a should sort before b: English (eng) first, then titles without "sdh", then stream index.
 func subtitleTrackOrders(a, b subtitleTrack) bool {
 	engA, engB := trackLanguage(a) == "eng", trackLanguage(b) == "eng"
@@ -50,6 +54,10 @@ func subtitleTrackOrders(a, b subtitleTrack) bool {
 	sdhA, sdhB := titleContainsSDH(trackTitle(a)), titleContainsSDH(trackTitle(b))
 	if sdhA != sdhB {
 		return !sdhA
+	}
+	forcedA, forcedB := titleContainsForced(trackTitle(a)), titleContainsForced(trackTitle(b))
+	if forcedA != forcedB {
+		return !forcedA
 	}
 	return a.Index < b.Index
 }

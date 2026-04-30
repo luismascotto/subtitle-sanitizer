@@ -17,6 +17,7 @@ type Config struct {
 	RemoveTextBeforeColonIfUppercase bool        `json:"removeTextBeforeColonIfUppercase"`
 	RemoveTextBeforeColon            bool        `json:"removeTextBeforeColon"`
 	RemoveSingleLineColon            bool        `json:"removeSingleLineColon"`
+	RemoveLineIfAllCaps              bool        `json:"removeLineIfAllCaps"`
 	RemoveBetweenDelimiters          []Delimiter `json:"removeBetweenDelimiters"`
 	RemoveLineIfContains             string      `json:"removeLineIfContains"`
 }
@@ -31,8 +32,9 @@ func DefaultConfig() Config {
 	return Config{
 		LoadedFromFile:                   false,
 		RemoveTextBeforeColonIfUppercase: true,
-		RemoveTextBeforeColon:            true,
-		RemoveSingleLineColon:            false,
+		RemoveTextBeforeColon:            false,
+		RemoveSingleLineColon:            true,
+		RemoveLineIfAllCaps:              false,
 		RemoveBetweenDelimiters: []Delimiter{
 			{Left: "(", Right: ")"},
 			{Left: "[", Right: "]"},
@@ -76,6 +78,7 @@ func (c Config) DescribeEffective() string {
 	fmt.Fprintf(&b, "removeTextBeforeColonIfUppercase: %t\n", c.RemoveTextBeforeColonIfUppercase)
 	fmt.Fprintf(&b, "removeTextBeforeColon: %t\n", c.RemoveTextBeforeColon)
 	fmt.Fprintf(&b, "removeSingleLineColon: %t\n", c.RemoveSingleLineColon)
+	fmt.Fprintf(&b, "removeLineIfAllCaps: %t\n", c.RemoveLineIfAllCaps)
 	b.WriteString("removeBetweenDelimiters:\n")
 	if len(c.RemoveBetweenDelimiters) == 0 {
 		b.WriteString("  (none)\n")
@@ -98,9 +101,9 @@ func (c Config) DescribeEffective() string {
 }
 
 func (c *Config) SaveToBackupFile(jsonData []byte) error {
-	err := os.WriteFile("config.backup.json", jsonData, 0644)
+	err := os.WriteFile("config.json", jsonData, 0644)
 	if err != nil {
-		return fmt.Errorf("save config backup: %w", err)
+		return fmt.Errorf("save config (backup): %w", err)
 	}
 	return nil
 }
@@ -112,6 +115,7 @@ const (
 	RuleRemoveTextBeforeColonIfUppercase AbbreviatedRuleDescription = "TEXT:"
 	RuleRemoveTextBeforeColon            AbbreviatedRuleDescription = "Text:"
 	RuleRemoveSingleLineColon            AbbreviatedRuleDescription = "[Line]:"
+	RuleRemoveLineIfAllCaps              AbbreviatedRuleDescription = "ALL CAPS"
 	RuleRemoveBetweenDelimiters          AbbreviatedRuleDescription = "\\ Delims /"
 	RuleRemoveLineIfContains             AbbreviatedRuleDescription = "%Contains%"
 )

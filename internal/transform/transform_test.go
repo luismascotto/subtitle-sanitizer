@@ -647,6 +647,82 @@ func Test_lineHasAlphabetic(t *testing.T) {
 	}
 }
 
+func Test_isAllCapsLine(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{name: "all caps letters", in: "HELLO WORLD", want: true},
+		{name: "all caps with punctuation and numbers", in: "FBI 2!", want: true},
+		{name: "mixed case", in: "Hello WORLD", want: false},
+		{name: "lowercase", in: "hello", want: false},
+		{name: "digits and punctuation only", in: "123 !?", want: false},
+		{name: "unicode uppercase", in: "AÇÃO", want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isAllCapsLine(tt.in); got != tt.want {
+				t.Fatalf("isAllCapsLine(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestApplyAll_removeLineIfAllCaps_removesMatchingLineOnly(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues: []*model.Cue{
+			{Index: 1, Lines: "HELLO THERE\nnormal line"},
+		},
+	}
+	conf := rules.Config{RemoveLineIfAllCaps: true}
+	out, ch := ApplyAll(doc, conf)
+	if len(out.Cues) != 1 {
+		t.Fatalf("want 1 cue, got %d", len(out.Cues))
+	}
+	if out.Cues[0].Lines != "normal line" {
+		t.Fatalf("got %q, want %q", out.Cues[0].Lines, "normal line")
+	}
+	if len(ch) != 1 || len(ch[0].Rules) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveLineIfAllCaps) {
+		t.Fatalf("unexpected changes: %+v", ch)
+	}
+}
+
+func TestApplyAll_removeLineIfAllCaps_mixedCaseUnchanged(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues: []*model.Cue{
+			{Index: 1, Lines: "Hello THERE"},
+		},
+	}
+	conf := rules.Config{RemoveLineIfAllCaps: true}
+	out, ch := ApplyAll(doc, conf)
+	if len(ch) != 0 {
+		t.Fatalf("expected no changes, got %+v", ch)
+	}
+	if len(out.Cues) != 1 || out.Cues[0].Lines != "Hello THERE" {
+		t.Fatalf("cue should be unchanged, got %+v", out.Cues)
+	}
+}
+
+func TestApplyAll_removeLineIfAllCaps_fullCueRemovedWhenAllLinesMatch(t *testing.T) {
+	doc := model.Document{
+		Format: model.SubtitleFormatSRT,
+		Cues: []*model.Cue{
+			{Index: 1, Lines: "FBI\nRUN!"},
+		},
+	}
+	conf := rules.Config{RemoveLineIfAllCaps: true}
+	out, ch := ApplyAll(doc, conf)
+	if len(out.Cues) != 0 {
+		t.Fatalf("cue should be dropped, got %+v", out.Cues)
+	}
+	if len(ch) != 1 || ch[0].Transformed != "" {
+		t.Fatalf("unexpected changes: %+v", ch)
+	}
+}
+
 func Test_normalizeRepeatedSingleDelimitersAlgorithm(t *testing.T) {
 	tests := []struct {
 		name string

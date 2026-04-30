@@ -69,6 +69,12 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 					rulesApplied = append(rulesApplied, string(rules.RuleRemoveSingleLineColon))
 				}
 			}
+			if conf.RemoveLineIfAllCaps {
+				ruleTriggered, text = removeLineIfAllCaps(text)
+				if ruleTriggered {
+					rulesApplied = append(rulesApplied, string(rules.RuleRemoveLineIfAllCaps))
+				}
+			}
 
 			if conf.RemoveTextBeforeColonIfUppercase {
 				ruleTriggered, text = removeUppercaseTextWithColon(text)
@@ -244,6 +250,37 @@ func removeSingleLineColon(s string) (bool, string) {
 
 func collapseSpaces(s string) string {
 	return reSpaces.ReplaceAllString(s, " ")
+}
+
+func isAllCapsLine(s string) bool {
+	hasLetter := false
+	for _, r := range s {
+		if !unicode.IsLetter(r) {
+			continue
+		}
+		hasLetter = true
+		if !unicode.IsUpper(r) {
+			return false
+		}
+	}
+	return hasLetter
+}
+
+func removeLineIfAllCaps(s string) (bool, string) {
+	if len(s) == 0 {
+		return false, s
+	}
+	lines := strings.Split(s, "\n")
+	out := make([]string, 0, len(lines))
+	removed := false
+	for _, line := range lines {
+		if isAllCapsLine(strings.TrimSpace(line)) {
+			removed = true
+			continue
+		}
+		out = append(out, line)
+	}
+	return removed, strings.Join(out, "\n")
 }
 
 func lineHasAlphabetic(s string) bool {

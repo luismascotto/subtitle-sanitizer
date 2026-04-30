@@ -59,7 +59,7 @@ func main() {
 	if args.MkvExtract {
 		// batchModel := view.NewBatchModel(args.Input)
 		if _, err := tea.NewProgram(view.NewBatchModel(args.Input)).Run(); err != nil {
-			exitWithErr(fmt.Errorf("run batch program: %w", err))
+			exitWithErr(fmt.Errorf("run batch tea program: %w", err))
 		}
 		time.Sleep(1 * time.Second)
 		return
@@ -82,7 +82,7 @@ func main() {
 				inputPath, data, err = mkv.ExtractSingleSubtitle(inputPath)
 				if err != nil {
 					loader.Send(view.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: false})
-					time.Sleep(1 * time.Second)
+					time.Sleep(2 * time.Second)
 					loader.Send(view.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: true})
 				} else {
 					loader.Send(view.LoaderMsg{Message: "Subtitles extracted successfully", Quit: true})
