@@ -669,14 +669,14 @@ func Test_isAllCapsLine(t *testing.T) {
 	}
 }
 
-func TestApplyAll_removeLineIfAllCaps_removesMatchingLineOnly(t *testing.T) {
+func TestApplyAll_removeLineIfAllCapsAction_removesMatchingLineOnly(t *testing.T) {
 	doc := model.Document{
 		Format: model.SubtitleFormatSRT,
 		Cues: []*model.Cue{
-			{Index: 1, Lines: "HELLO THERE\nnormal line"},
+			{Index: 1, Lines: "PHONE RINGS\nnormal line"},
 		},
 	}
-	conf := rules.Config{RemoveLineIfAllCaps: true}
+	conf := rules.Config{RemoveLineIfAllCapsAction: true}
 	out, ch := ApplyAll(doc, conf)
 	if len(out.Cues) != 1 {
 		t.Fatalf("want 1 cue, got %d", len(out.Cues))
@@ -684,19 +684,19 @@ func TestApplyAll_removeLineIfAllCaps_removesMatchingLineOnly(t *testing.T) {
 	if out.Cues[0].Lines != "normal line" {
 		t.Fatalf("got %q, want %q", out.Cues[0].Lines, "normal line")
 	}
-	if len(ch) != 1 || len(ch[0].Rules) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveLineIfAllCaps) {
+	if len(ch) != 1 || len(ch[0].Rules) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveLineIfAllCapsAction) {
 		t.Fatalf("unexpected changes: %+v", ch)
 	}
 }
 
-func TestApplyAll_removeLineIfAllCaps_mixedCaseUnchanged(t *testing.T) {
+func TestApplyAll_removeLineIfAllCapsAction_mixedCaseUnchanged(t *testing.T) {
 	doc := model.Document{
 		Format: model.SubtitleFormatSRT,
 		Cues: []*model.Cue{
 			{Index: 1, Lines: "Hello THERE"},
 		},
 	}
-	conf := rules.Config{RemoveLineIfAllCaps: true}
+	conf := rules.Config{RemoveLineIfAllCapsAction: true}
 	out, ch := ApplyAll(doc, conf)
 	if len(ch) != 0 {
 		t.Fatalf("expected no changes, got %+v", ch)
@@ -706,19 +706,22 @@ func TestApplyAll_removeLineIfAllCaps_mixedCaseUnchanged(t *testing.T) {
 	}
 }
 
-func TestApplyAll_removeLineIfAllCaps_fullCueRemovedWhenAllLinesMatch(t *testing.T) {
+func TestApplyAll_removeLineIfAllCapsAction_fullCueRemovedWhenAllLinesMatch(t *testing.T) {
 	doc := model.Document{
 		Format: model.SubtitleFormatSRT,
 		Cues: []*model.Cue{
-			{Index: 1, Lines: "FBI\nRUN!"},
+			{Index: 1, Lines: "SHE SCREAMS IN RUSSIAN\nRUN!"},
 		},
 	}
-	conf := rules.Config{RemoveLineIfAllCaps: true}
+	conf := rules.Config{RemoveLineIfAllCapsAction: true}
 	out, ch := ApplyAll(doc, conf)
-	if len(out.Cues) != 0 {
-		t.Fatalf("cue should be dropped, got %+v", out.Cues)
+	if len(out.Cues) != 1 {
+		t.Fatalf("want 1 cue, got %d", len(out.Cues))
 	}
-	if len(ch) != 1 || ch[0].Transformed != "" {
+	if out.Cues[0].Lines != "RUN!" {
+		t.Fatalf("got %q, want %q", out.Cues[0].Lines, "RUN!")
+	}
+	if len(ch) != 1 || len(ch[0].Rules) != 1 || ch[0].Rules[0] != string(rules.RuleRemoveLineIfAllCapsAction) {
 		t.Fatalf("unexpected changes: %+v", ch)
 	}
 }

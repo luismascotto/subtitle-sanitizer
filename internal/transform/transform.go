@@ -69,10 +69,10 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 					rulesApplied = append(rulesApplied, string(rules.RuleRemoveSingleLineColon))
 				}
 			}
-			if conf.RemoveLineIfAllCaps {
-				ruleTriggered, text = removeLineIfAllCaps(text)
+			if conf.RemoveLineIfAllCapsAction {
+				ruleTriggered, text = removeLineIfAllCapsAction(text)
 				if ruleTriggered {
-					rulesApplied = append(rulesApplied, string(rules.RuleRemoveLineIfAllCaps))
+					rulesApplied = append(rulesApplied, string(rules.RuleRemoveLineIfAllCapsAction))
 				}
 			}
 
@@ -263,10 +263,11 @@ func isAllCapsLine(s string) bool {
 			return false
 		}
 	}
-	return hasLetter
+	words := len(strings.Fields(s))
+	return hasLetter && words >= 2 && words <= 4
 }
 
-func removeLineIfAllCaps(s string) (bool, string) {
+func removeLineIfAllCapsAction(s string) (bool, string) {
 	if len(s) == 0 {
 		return false, s
 	}

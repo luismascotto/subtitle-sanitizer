@@ -18,8 +18,8 @@ func TestDefaultConfig(t *testing.T) {
 	if got, want := c.RemoveLineIfContains, " music *"; got != want {
 		t.Fatalf("RemoveLineIfContains = %q, want %q", got, want)
 	}
-	if c.RemoveLineIfAllCaps {
-		t.Fatal("RemoveLineIfAllCaps should be false")
+	if c.RemoveLineIfAllCapsAction {
+		t.Fatal("RemoveLineIfAllCapsAction should be false")
 	}
 	if len(c.RemoveBetweenDelimiters) != 4 {
 		t.Fatalf("delimiters: got %d, want 4", len(c.RemoveBetweenDelimiters))
@@ -31,7 +31,7 @@ func TestParseConfig(t *testing.T) {
 		"removeTextBeforeColonIfUppercase": false,
 		"removeTextBeforeColon": true,
 		"removeSingleLineColon": true,
-		"removeLineIfAllCaps": true,
+		"removeLineIfAllCapsAction": true,
 		"removeBetweenDelimiters": [{"left":"(","right":")"}],
 		"removeLineIfContains": "x",
 		"loadedFromFile": false
@@ -49,8 +49,8 @@ func TestParseConfig(t *testing.T) {
 	if !c.RemoveSingleLineColon {
 		t.Fatal("expected true from JSON")
 	}
-	if !c.RemoveLineIfAllCaps {
-		t.Fatal("expected RemoveLineIfAllCaps true from JSON")
+	if !c.RemoveLineIfAllCapsAction {
+		t.Fatal("expected RemoveLineIfAllCapsAction true from JSON")
 	}
 	if len(c.RemoveBetweenDelimiters) != 1 || c.RemoveBetweenDelimiters[0].Left != "(" {
 		t.Fatalf("delimiters: %+v", c.RemoveBetweenDelimiters)
@@ -68,7 +68,7 @@ func TestDescribeEffective(t *testing.T) {
 	s := DefaultConfig().DescribeEffective()
 	for _, sub := range []string{
 		"removeTextBeforeColonIfUppercase: true",
-		"removeLineIfAllCaps: false",
+		"removeLineIfAllCapsAction: false",
 		"source: built-in defaults",
 		`left="("`,
 	} {
@@ -76,9 +76,9 @@ func TestDescribeEffective(t *testing.T) {
 			t.Fatalf("DescribeEffective missing %q in:\n%s", sub, s)
 		}
 	}
-	c := Config{LoadedFromFile: true, RemoveLineIfContains: "", RemoveLineIfAllCaps: true}
+	c := Config{LoadedFromFile: true, RemoveLineIfContains: "", RemoveLineIfAllCapsAction: true}
 	s2 := c.DescribeEffective()
-	for _, sub := range []string{"source: config.json", "removeLineIfContains: (empty; disabled)", "removeLineIfAllCaps: true"} {
+	for _, sub := range []string{"source: config.json", "removeLineIfContains: (empty; disabled)", "removeLineIfAllCapsAction: true"} {
 		if !strings.Contains(s2, sub) {
 			t.Fatalf("DescribeEffective missing %q in:\n%s", sub, s2)
 		}

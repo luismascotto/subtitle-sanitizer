@@ -12,12 +12,13 @@ import (
 // RemoveTextBeforeColon(if uppercase explicitly specified): usually to refer to a specific person or thing that is not appearing in the scene. eg: "Father: Hi son!", "GUARD 2: Hey!", "KAREN: Hello!"
 // RemoveBetweenDelimiters: remove text between delimiters. eg: (tyres screeching), [bird chirping]
 // RemoveLineIfContains: remove line if it contains the specified text. Used when some subtitles don't follow common rules or patterns. eg: "tense music * (should be [tense music])"
+// RemoveLineIfAllCapsAction: remove line if it describes an action and is all uppercase. eg: "PHONE RINGS", "ALL SIGHS"
 type Config struct {
 	LoadedFromFile                   bool        `json:"loadedFromFile"`
 	RemoveTextBeforeColonIfUppercase bool        `json:"removeTextBeforeColonIfUppercase"`
 	RemoveTextBeforeColon            bool        `json:"removeTextBeforeColon"`
 	RemoveSingleLineColon            bool        `json:"removeSingleLineColon"`
-	RemoveLineIfAllCaps              bool        `json:"removeLineIfAllCaps"`
+	RemoveLineIfAllCapsAction        bool        `json:"removeLineIfAllCapsAction"`
 	RemoveBetweenDelimiters          []Delimiter `json:"removeBetweenDelimiters"`
 	RemoveLineIfContains             string      `json:"removeLineIfContains"`
 }
@@ -34,7 +35,7 @@ func DefaultConfig() Config {
 		RemoveTextBeforeColonIfUppercase: true,
 		RemoveTextBeforeColon:            false,
 		RemoveSingleLineColon:            true,
-		RemoveLineIfAllCaps:              false,
+		RemoveLineIfAllCapsAction:        false,
 		RemoveBetweenDelimiters: []Delimiter{
 			{Left: "(", Right: ")"},
 			{Left: "[", Right: "]"},
@@ -78,7 +79,7 @@ func (c Config) DescribeEffective() string {
 	fmt.Fprintf(&b, "removeTextBeforeColonIfUppercase: %t\n", c.RemoveTextBeforeColonIfUppercase)
 	fmt.Fprintf(&b, "removeTextBeforeColon: %t\n", c.RemoveTextBeforeColon)
 	fmt.Fprintf(&b, "removeSingleLineColon: %t\n", c.RemoveSingleLineColon)
-	fmt.Fprintf(&b, "removeLineIfAllCaps: %t\n", c.RemoveLineIfAllCaps)
+	fmt.Fprintf(&b, "removeLineIfAllCapsAction: %t\n", c.RemoveLineIfAllCapsAction)
 	b.WriteString("removeBetweenDelimiters:\n")
 	if len(c.RemoveBetweenDelimiters) == 0 {
 		b.WriteString("  (none)\n")
@@ -115,7 +116,7 @@ const (
 	RuleRemoveTextBeforeColonIfUppercase AbbreviatedRuleDescription = "TEXT:"
 	RuleRemoveTextBeforeColon            AbbreviatedRuleDescription = "Text:"
 	RuleRemoveSingleLineColon            AbbreviatedRuleDescription = "[Line]:"
-	RuleRemoveLineIfAllCaps              AbbreviatedRuleDescription = "ALL CAPS"
+	RuleRemoveLineIfAllCapsAction        AbbreviatedRuleDescription = "ALL CAPS"
 	RuleRemoveBetweenDelimiters          AbbreviatedRuleDescription = "\\ Delims /"
 	RuleRemoveLineIfContains             AbbreviatedRuleDescription = "%Contains%"
 )
