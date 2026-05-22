@@ -654,17 +654,36 @@ func Test_isAllCapsLine(t *testing.T) {
 		want bool
 	}{
 		{name: "all caps letters", in: "HELLO WORLD", want: true},
-		{name: "all caps with punctuation and numbers", in: "FBI 2!", want: true},
+		{name: "all caps with punctuation and numbers", in: "FBI 2!", want: false},
 		{name: "mixed case", in: "Hello WORLD", want: false},
 		{name: "lowercase", in: "hello", want: false},
 		{name: "digits and punctuation only", in: "123 !?", want: false},
-		{name: "unicode uppercase", in: "AÇÃO", want: false},
-		{name: "unicode uppercase", in: "EXPLOSÃO BARULHENTA", want: true},
+		{name: "unicode uppercase single", in: "AÇÃO", want: false},
+		{name: "unicode uppercase multiple", in: "EXPLOSÃO BARULHENTA", want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isAllCapsLine(tt.in); got != tt.want {
+			if got := isAllCapsLine(tt.in, 2); got != tt.want {
 				t.Fatalf("isAllCapsLine(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_removeLineIfAllCapsAction(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{name: "single line one cap word", in: "SIGHS", want: true},
+		{name: "multiple lines one cap word", in: "SIGHS\nIn the car", want: false},
+		{name: "multiple lines multiple cap words", in: "SHE SIGHS\nIn the car", want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, _ := removeLineIfAllCapsAction(tt.in); got != tt.want {
+				t.Fatalf("removeLineIfAllCapsAction(%q) = %v, want %v", tt.in, got, tt.want)
 			}
 		})
 	}

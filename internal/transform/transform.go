@@ -252,19 +252,25 @@ func collapseSpaces(s string) string {
 	return reSpaces.ReplaceAllString(s, " ")
 }
 
-func isAllCapsLine(s string) bool {
-	hasLetter := false
-	for _, r := range s {
-		if !unicode.IsLetter(r) {
-			continue
+func isAllCapsLine(s string, min int) bool {
+	words := 0
+	for w := range strings.FieldsSeq(s) {
+		hasLetter := false
+		for _, r := range w {
+			if !unicode.IsLetter(r) {
+				continue
+			}
+			hasLetter = true
+			if !unicode.IsUpper(r) {
+				return false
+			}
 		}
-		hasLetter = true
-		if !unicode.IsUpper(r) {
-			return false
+		if hasLetter {
+			words++
 		}
 	}
-	words := len(strings.Fields(s))
-	return hasLetter && words >= 2 && words <= 4
+
+	return words >= min
 }
 
 func removeLineIfAllCapsAction(s string) (bool, string) {
@@ -273,9 +279,13 @@ func removeLineIfAllCapsAction(s string) (bool, string) {
 	}
 	lines := strings.Split(s, "\n")
 	out := make([]string, 0, len(lines))
+	min := 2
+	if len(lines) == 1 {
+		min = 1
+	}
 	removed := false
 	for _, line := range lines {
-		if isAllCapsLine(strings.TrimSpace(line)) {
+		if isAllCapsLine(strings.TrimSpace(line), min) {
 			removed = true
 			continue
 		}
