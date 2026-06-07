@@ -126,33 +126,49 @@ func ExtractMultipleSubtitles(inputPath string, maxTracks int) (first *string, l
 	subtitleOutPaths := make([]string, 0, len(tracks))
 	// remove extension (E:\folder\Mediafolder\file.mkv -> E:\folder\Mediafolder\file)
 	baseFilename := inputPath[:len(inputPath)-4]
+	if len(tracks) > 5 {
+		// create as folder if it doesn't exist
+		if err := os.MkdirAll(baseFilename, 0755); err != nil {
+			return nil, nil, fmt.Errorf("create folder: %w", err)
+		}
+		// For more than 5 subtitles,append a folder with the filename
+		// -> E:\folder\Mediafolder\file\file
+		baseFilename = filepath.Join(baseFilename, filepath.Base(baseFilename))
+
+	}
 	sbOutPath := strings.Builder{}
 	enoughSpace := max(0, (len(inputPath)+4+4+4)-sbOutPath.Cap()) // 4 for count, 4 for language, 4 extra
 	sbOutPath.Grow(enoughSpace)
 
 	for _, track := range tracks {
-		// get extension alwithout the dot to match the base filename
+		// get extension without the dot to match the base filename
 		ext := subtitleExtension(track)
+		if ext == "" {
+			//print warning and continue
+			fmt.Printf("Warning: subtitle not identified for track %d (tags: %+v). Skipping...\n", track.Index, track.Tags)
+			continue
+		}
 		mapKey := fmt.Sprintf("%s%s", track.Tags.Language, ext)
 
 		countSuffix := collisionCount[mapKey]
 
 		sbOutPath.Reset()
-		// ->  E:\folder\Mediafolder\file
+		// -> .\file
 		sbOutPath.WriteString(baseFilename)
 
 		if countSuffix > 0 {
-			// ->  E:\folder\Mediafolder\file_01
+			// add count suffix if there are multiple subtitles with the same language (or without any language specified) to avoid overwriting
+			// ->  .\file_01
 			fmt.Fprintf(&sbOutPath, "_%02d", countSuffix)
 		}
 
 		collisionCount[mapKey]++
 
 		if track.Tags.Language != "" {
-			// ->  E:\folder\Mediafolder\file_01.eng
+			// ->  .\file_01.eng
 			fmt.Fprintf(&sbOutPath, ".%s", track.Tags.Language)
 		}
-		// ->  E:\folder\Mediafolder\file_01.eng.srt
+		// ->  .\file_01.eng.srt (or .\file_01.srt)
 		fmt.Fprintf(&sbOutPath, "%s", ext)
 
 		outString := sbOutPath.String()
@@ -233,6 +249,6 @@ func subtitleExtension(track subtitleTrack) string {
 	case strings.Contains(codec, "dvd") || strings.Contains(tag, "dvd"):
 		return ".sub"
 	default:
-		return ".sub"
+		return ""
 	}
 }

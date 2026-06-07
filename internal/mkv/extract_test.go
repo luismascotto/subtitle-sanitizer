@@ -24,7 +24,7 @@ func TestSubtitleExtension(t *testing.T) {
 		{name: "vtt", track: subtitleTrack{Codec: "webvtt"}, want: ".vtt"},
 		{name: "pgs", track: subtitleTrack{Codec: "hdmv_pgs_subtitle"}, want: ".sup"},
 		{name: "dvdsub from tag", track: subtitleTrack{CodecTag: "DVDS"}, want: ".sub"},
-		{name: "unknown", track: subtitleTrack{Codec: "unknown"}, want: ".sub"},
+		{name: "unknown", track: subtitleTrack{Codec: "unknown"}, want: ""},
 	}
 
 	for _, tc := range tests {
