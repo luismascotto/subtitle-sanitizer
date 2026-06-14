@@ -62,6 +62,7 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 				}
 			}
 		}
+
 		if text != "" {
 			if conf.RemoveSingleLineColon {
 				ruleTriggered, text = removeSingleLineColon(text)
@@ -86,6 +87,13 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 				if ruleTriggered {
 					rulesApplied = append(rulesApplied, string(rules.RuleRemoveTextBeforeColon))
 				}
+			}
+		}
+
+		if text != "" && conf.RemoveOnlySymbolsLine {
+			if !lineHasAlphabetic(text) {
+				text = ""
+				rulesApplied = append(rulesApplied, string(rules.RuleRemoveOnlySymbolsLine))
 			}
 		}
 
@@ -256,6 +264,7 @@ func isAllCapsLine(s string, min int) bool {
 	words := 0
 	for w := range strings.FieldsSeq(s) {
 		hasLetter := false
+		capsCount := 0
 		for _, r := range w {
 			if !unicode.IsLetter(r) {
 				continue
@@ -264,8 +273,9 @@ func isAllCapsLine(s string, min int) bool {
 			if !unicode.IsUpper(r) {
 				return false
 			}
+			capsCount++
 		}
-		if hasLetter {
+		if hasLetter && capsCount > 1 {
 			words++
 		}
 	}
@@ -290,6 +300,9 @@ func removeLineIfAllCapsAction(s string) (bool, string) {
 			continue
 		}
 		out = append(out, line)
+	}
+	if !removed {
+		return false, s
 	}
 	return removed, strings.Join(out, "\n")
 }
@@ -336,11 +349,15 @@ func removeUppercaseTextWithColon(s string) (bool, string) {
 	for _, line := range lines {
 		if reUppercaseTextWithColon.MatchString(line) {
 			removed = true
+			line = reUppercaseTextWithColon.ReplaceAllString(line, "")
 		}
-		line = reUppercaseTextWithColon.ReplaceAllString(line, "")
 		out = append(out, line)
 	}
-	return removed, strings.Join(out, "\n")
+	if removed {
+		return true, strings.Join(out, "\n")
+	}
+	// Avoid inner allocations by returning the original string if no removal occurred
+	return false, s
 }
 
 func removeTextBeforeColon(s string) (bool, string) {
@@ -358,5 +375,9 @@ func removeTextBeforeColon(s string) (bool, string) {
 		line = reTextWithColon.ReplaceAllString(line, "")
 		out = append(out, line)
 	}
-	return removed, strings.Join(out, "\n")
+	if removed {
+		return true, strings.Join(out, "\n")
+	}
+	// Avoid inner allocations by returning the original string if no removal occurred
+	return false, s
 }

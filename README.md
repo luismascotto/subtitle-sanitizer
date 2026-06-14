@@ -1,14 +1,7 @@
 # Subtitle Sanitizer (Go)
 
-A small CLI tool to sanitize subtitle files by removing Hearing Impaired Text (HIT) and other noise. Initial target formats: `.srt` (implemented), `.ass` (stubbed for now). Always writes result as `.srt` with `-his` suffix to avoid damaging the original.
+A small CLI tool to sanitize subtitles by removing configurable levels of Hearing Impaired Text (HIT) and other noises. Supports SRT and ASS (produces a SRT result) formats. Can also be used for raw subtitle extraction from MKV files with the ffmpeg tool ("sold separatedly")
 
-## Status
-- SRT parse/write: ready
-- ASS: stubbed (clear error)
-- Rule: remove ALL UPPERCASE words (2+ chars)
-- Drops cues that end up with no alphabetic content
-- Rewrite cues sequence at writing file to disk
-- JSON rules scaffold: in place (future work)
 
 ## Install
 ```bash
@@ -17,16 +10,19 @@ go build -o subtitle-sanitizer ./cmd/sanitize
 
 ## Usage
 ```bash
-subtitle-sanitizer path/to/file1.srt path/to/file2.ass 
+subtitle-sanitizer /path/to/file1.srt /path/to/file2.ass /path/to/file3.mkv
 ```
 
 Options:
-- `PATH1 [PATH2] [--mkv-extract, -m]`, (default false): try to extract all subtitles from files only
+- `PATH1 [PATH2] [--mkv-extract, -m]`, (default false): extract all subtitles from files only
+    --mkv-extract, -m: skip sanitization and extract all subtitles
 
-If mkv file is an arg, tries to extract first substitle (order by eng language, no sdh) and follows sanitization workflow
+Checks for config.json, and when not found, saves a config.backup.json with default options
+For sanitization, detects MKV arg and extracts one subtitle (english, no sdh first on language/description tags) and forwards to the workflow.
+A list of all affected cues is presented with original and modified content, along with each triggered rule description.
 
 Output:
-- Saves to `path/to/file-his.srt` or `path/to/file.srt`, depending on overwrite choice
+- Saves as `/path/to/file-his.srt` or `/path/to/file.srt`, depending on format and saving options
 
 ## WebAssembly (browser)
 
@@ -49,8 +45,14 @@ The same sanitize pipeline is exposed as JSON in/out via `internal/wasmbridge` (
 
 ## Notes
 Design emphasizes separation of concerns:
+- `internal/mkv`: subtitle extraction
 - `internal/model`: core data structures
 - `internal/view`: core bubble tea workflow
 - `internal/subtitle`: format-specific parsers/printers
 - `internal/transform`: content transformations
 - `internal/rules`: transformation rules config
+- `internal/wasmbridge`: WASM definitions
+
+
+## TODO
+- Keep '-' when dialogue starts with speaker reference. "-PERSON: Hello" to "-Hello", not "Hello" (tweak on regex, add/refactor tests)

@@ -78,7 +78,7 @@ func main() {
 			loader := tea.NewProgram(view.NewLoaderModel())
 
 			go func() {
-				loader.Send(view.LoaderMsg{Message: "Extracting subtitles from MKV file...", Quit: false})
+				loader.Send(view.LoaderMsg{Message: fmt.Sprintf("Extracting from %s", filepath.Base(inputPath)), Quit: false})
 				inputPath, data, err = mkv.ExtractSingleSubtitle(inputPath)
 				if err != nil {
 					loader.Send(view.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: false})

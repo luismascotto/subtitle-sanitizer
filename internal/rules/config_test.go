@@ -21,8 +21,8 @@ func TestDefaultConfig(t *testing.T) {
 	if c.RemoveLineIfAllCapsAction {
 		t.Fatal("RemoveLineIfAllCapsAction should be false")
 	}
-	if len(c.RemoveBetweenDelimiters) != 4 {
-		t.Fatalf("delimiters: got %d, want 4", len(c.RemoveBetweenDelimiters))
+	if len(c.RemoveBetweenDelimiters) != 3 {
+		t.Fatalf("delimiters: got %d, want 3", len(c.RemoveBetweenDelimiters))
 	}
 }
 

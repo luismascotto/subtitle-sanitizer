@@ -13,6 +13,7 @@ import (
 // RemoveBetweenDelimiters: remove text between delimiters. eg: (tyres screeching), [bird chirping]
 // RemoveLineIfContains: remove line if it contains the specified text. Used when some subtitles don't follow common rules or patterns. eg: "tense music * (should be [tense music])"
 // RemoveLineIfAllCapsAction: remove line if it describes an action and is all uppercase. eg: "PHONE RINGS", "ALL SIGHS"
+// RemoveOnlySymbolsLine: remove line if it contains only symbols. eg: "***", "♪", "♫"
 type Config struct {
 	LoadedFromFile                   bool        `json:"loadedFromFile"`
 	RemoveTextBeforeColonIfUppercase bool        `json:"removeTextBeforeColonIfUppercase"`
@@ -21,6 +22,7 @@ type Config struct {
 	RemoveLineIfAllCapsAction        bool        `json:"removeLineIfAllCapsAction"`
 	RemoveBetweenDelimiters          []Delimiter `json:"removeBetweenDelimiters"`
 	RemoveLineIfContains             string      `json:"removeLineIfContains"`
+	RemoveOnlySymbolsLine            bool        `json:"removeOnlySymbolsLine"`
 }
 
 type Delimiter struct {
@@ -39,10 +41,10 @@ func DefaultConfig() Config {
 		RemoveBetweenDelimiters: []Delimiter{
 			{Left: "(", Right: ")"},
 			{Left: "[", Right: "]"},
-			{Left: "{", Right: "}"},
 			{Left: "*", Right: "*"},
 		},
-		RemoveLineIfContains: " music *",
+		RemoveLineIfContains:  " music *",
+		RemoveOnlySymbolsLine: true,
 	}
 }
 
@@ -119,4 +121,5 @@ const (
 	RuleRemoveLineIfAllCapsAction        AbbreviatedRuleDescription = "ALL CAPS"
 	RuleRemoveBetweenDelimiters          AbbreviatedRuleDescription = "\\ Delims /"
 	RuleRemoveLineIfContains             AbbreviatedRuleDescription = "%Contains%"
+	RuleRemoveOnlySymbolsLine            AbbreviatedRuleDescription = "♪ ♪"
 )
