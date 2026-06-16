@@ -555,24 +555,6 @@ func TestApplyAll_emptyParenthesesRemoved(t *testing.T) {
 	}
 }
 
-func TestApplyAll_postProcess_dropsLinesWithoutLetters(t *testing.T) {
-	doc := model.Document{
-		Format: model.SubtitleFormatSRT,
-		Cues:   []*model.Cue{{Index: 1, Lines: "Note: 42"}},
-	}
-	conf := rules.Config{RemoveTextBeforeColon: true}
-	out, ch := ApplyAll(doc, conf)
-	if len(ch) != 1 {
-		t.Fatalf("want one change logged, got %+v", ch)
-	}
-	if len(out.Cues) != 0 {
-		t.Fatalf("numeric-only remainder should drop cue, got %+v", out.Cues)
-	}
-	if ch[0].Transformed != "" {
-		t.Fatalf("transformed should be empty after stripping non-alphabetic lines, got %q", ch[0].Transformed)
-	}
-}
-
 func TestApplyAll_removeTextBeforeColon_lowercaseSpeakerUnchangedWhenUppercaseRuleOnly(t *testing.T) {
 	doc := model.Document{
 		Format: model.SubtitleFormatSRT,
@@ -645,15 +627,18 @@ func Test_collapseSpaces(t *testing.T) {
 	}
 }
 
-func Test_lineHasAlphabetic(t *testing.T) {
-	if !lineHasAlphabetic("123a") {
+func Test_lineHasAlphanumeric(t *testing.T) {
+	if !lineHasAlphanumeric("123a") {
 		t.Fatal("expected true for letter")
 	}
-	if lineHasAlphabetic("123") {
-		t.Fatal("expected false for digits only")
+	if !lineHasAlphanumeric("123") {
+		t.Fatal("expected true for numbers")
 	}
-	if lineHasAlphabetic("…") {
+	if lineHasAlphanumeric("…") {
 		t.Fatal("expected false for punctuation only")
+	}
+	if lineHasAlphanumeric("… * ♪") {
+		t.Fatal("expected false for symbols and spaces only")
 	}
 }
 

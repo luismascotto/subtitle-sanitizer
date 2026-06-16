@@ -91,7 +91,7 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 		}
 
 		if text != "" && conf.RemoveOnlySymbolsLine {
-			if !lineHasAlphabetic(text) {
+			if !lineHasAlphanumeric(text) {
 				text = ""
 				rulesApplied = append(rulesApplied, string(rules.RuleRemoveOnlySymbolsLine))
 			}
@@ -105,7 +105,7 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 			textLines := strings.Split(text, "\n")
 			finalTextLines := []string{}
 			for i := range textLines {
-				if lineHasAlphabetic(textLines[i]) {
+				if lineHasAlphanumeric(textLines[i]) {
 					sanitizedLine := strings.TrimSpace(collapseSpaces(textLines[i]))
 					if sanitizedLine != "" {
 						finalTextLines = append(finalTextLines, sanitizedLine)
@@ -307,9 +307,9 @@ func removeLineIfAllCapsAction(s string) (bool, string) {
 	return removed, strings.Join(out, "\n")
 }
 
-func lineHasAlphabetic(s string) bool {
+func lineHasAlphanumeric(s string) bool {
 	for _, r := range s {
-		if unicode.IsLetter(r) {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
 			return true
 		}
 	}
