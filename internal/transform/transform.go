@@ -11,6 +11,10 @@ import (
 	"github.com/luismascotto/subtitle-sanitizer/internal/rules"
 )
 
+const (
+	minCapsInWord = 2
+)
+
 var (
 	// reBr                  = regexp.MustCompile(`<br />`)
 	reSpaces = regexp.MustCompile(`\s{2,}`)
@@ -262,20 +266,15 @@ func collapseSpaces(s string) string {
 
 func isAllCapsLine(s string, min int) bool {
 	words := 0
-	for w := range strings.FieldsSeq(s) {
-		hasLetter := false
-		capsCount := 0
+	for w := range strings.FieldsFuncSeq(s, func(r rune) bool {
+		return !unicode.IsLetter(r)
+	}) {
 		for _, r := range w {
-			if !unicode.IsLetter(r) {
-				continue
-			}
-			hasLetter = true
 			if !unicode.IsUpper(r) {
 				return false
 			}
-			capsCount++
 		}
-		if hasLetter && capsCount > 1 {
+		if len(w) > minCapsInWord {
 			words++
 		}
 	}
