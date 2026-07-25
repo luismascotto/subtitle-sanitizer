@@ -43,12 +43,10 @@ func splitSRTBlocks(data []byte) [][]string {
 	// Normalize newlines
 	s := strings.ReplaceAll(string(data), "\r\n", "\n")
 	s = strings.ReplaceAll(s, "\x00", "\n")
-	parts := strings.Split(s, "\n\n")
-	out := make([][]string, 0, len(parts))
-	for _, p := range parts {
-		lines := strings.Split(p, "\n")
-		trimmed := make([]string, 0, len(lines))
-		for _, l := range lines {
+	out := make([][]string, 0)
+	for p := range strings.SplitSeq(s, "\n\n") {
+		trimmed := make([]string, 0)
+		for l := range strings.SplitSeq(p, "\n") {
 			trimmed = append(trimmed, strings.TrimRight(l, " \t"))
 		}
 		// Drop leading/trailing empty lines in each block

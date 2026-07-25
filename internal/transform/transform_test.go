@@ -672,6 +672,7 @@ func Test_removeLineIfAllCapsAction(t *testing.T) {
 		want bool
 	}{
 		{name: "single line one cap word", in: "SIGHS", want: true},
+		{name: "single line one cap word with question mark", in: "MARK?", want: false},
 		{name: "multiple lines one cap word", in: "SIGHS\nIn the car", want: false},
 		{name: "multiple lines multiple cap words", in: "SHE SIGHS\nIn the car", want: true},
 	}

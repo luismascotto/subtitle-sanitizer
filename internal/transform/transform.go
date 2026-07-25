@@ -106,11 +106,11 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 		}
 
 		if text != "" && len(rulesApplied) > 0 {
-			textLines := strings.Split(text, "\n")
+			textLines := strings.SplitSeq(text, "\n")
 			finalTextLines := []string{}
-			for i := range textLines {
-				if lineHasAlphanumeric(textLines[i]) {
-					sanitizedLine := strings.TrimSpace(collapseSpaces(textLines[i]))
+			for line := range textLines {
+				if lineHasAlphanumeric(line) {
+					sanitizedLine := strings.TrimSpace(collapseSpaces(line))
 					if sanitizedLine != "" {
 						finalTextLines = append(finalTextLines, sanitizedLine)
 					}
@@ -241,23 +241,32 @@ func removeSingleLineColon(s string) (bool, string) {
 	if len(s) == 0 {
 		return false, s
 	}
-	lines := strings.Split(s, "\n")
-	out := make([]string, 0, len(lines))
+	linesSequence := strings.SplitSeq(s, "\n")
+	out := make([]string, 0)
 	removed := false
-	for _, line := range lines {
+	for line := range linesSequence {
 		trimmed := strings.TrimSpace(line)
 		if before, ok := strings.CutSuffix(trimmed, ":"); ok && before != "" {
 			withoutColon := strings.TrimSpace(before)
 			// Count words using whitespace splitting
-			words := strings.Fields(withoutColon)
-			if len(words) > 0 && len(words) <= 3 {
+			wordCount := 0
+			for range strings.FieldsSeq(withoutColon) {
+				wordCount++
+				if wordCount > 3 {
+					break
+				}
+			}
+			if wordCount > 0 && wordCount <= 3 {
 				removed = true
 				continue
 			}
 		}
 		out = append(out, line)
 	}
-	return removed, strings.Join(out, "\n")
+	if !removed {
+		return false, s
+	}
+	return true, strings.Join(out, "\n")
 }
 
 func collapseSpaces(s string) string {
@@ -286,15 +295,13 @@ func removeLineIfAllCapsAction(s string) (bool, string) {
 	if len(s) == 0 {
 		return false, s
 	}
-	lines := strings.Split(s, "\n")
-	out := make([]string, 0, len(lines))
-	min := 2
-	if len(lines) == 1 {
-		min = 1
-	}
+
+	out := make([]string, 0)
+	min := min(2, strings.Count(s, "\n")+1)
+
 	removed := false
-	for _, line := range lines {
-		if isAllCapsLine(strings.TrimSpace(line), min) {
+	for line := range strings.SplitSeq(s, "\n") {
+		if !strings.HasSuffix(line, "?") && isAllCapsLine(strings.TrimSpace(line), min) {
 			removed = true
 			continue
 		}
@@ -303,7 +310,7 @@ func removeLineIfAllCapsAction(s string) (bool, string) {
 	if !removed {
 		return false, s
 	}
-	return removed, strings.Join(out, "\n")
+	return true, strings.Join(out, "\n")
 }
 
 func lineHasAlphanumeric(s string) bool {
@@ -342,10 +349,10 @@ func removeUppercaseTextWithColon(s string) (bool, string) {
 	if len(s) == 0 {
 		return false, s
 	}
-	lines := strings.Split(s, "\n")
-	out := make([]string, 0, len(lines))
+	linesSequence := strings.SplitSeq(s, "\n")
+	out := make([]string, 0)
 	removed := false
-	for _, line := range lines {
+	for line := range linesSequence {
 		if reUppercaseTextWithColon.MatchString(line) {
 			removed = true
 			line = reUppercaseTextWithColon.ReplaceAllString(line, "")
@@ -364,10 +371,10 @@ func removeTextBeforeColon(s string) (bool, string) {
 	if len(s) == 0 {
 		return false, s
 	}
-	lines := strings.Split(s, "\n")
-	out := make([]string, 0, len(lines))
+	linesSequence := strings.SplitSeq(s, "\n")
+	out := make([]string, 0)
 	removed := false
-	for _, line := range lines {
+	for line := range linesSequence {
 		if reTextWithColon.MatchString(line) {
 			removed = true
 		}
