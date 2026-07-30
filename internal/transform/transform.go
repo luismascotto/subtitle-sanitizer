@@ -21,6 +21,10 @@ var (
 	//reUppercaseColonWords    = regexp.MustCompile(`\b[A-Z]{1,}\s*[A-Z0-9]{1,}:[ \t]*`)
 	reTextWithColon          = regexp.MustCompile(`^[^:]+:[ \t]*`)
 	reUppercaseTextWithColon = regexp.MustCompile(`^[^:a-z]*[A-Z][^:a-z]*:[ \t]*`)
+	// ASS override tags → SRT (compiled once; convertASSFormattingToSRT used per cue).
+	reASSOpenTag   = regexp.MustCompile(`{\\([bius])[1-9]\d*}`)
+	reASSCloseTag  = regexp.MustCompile(`{\\([bius])0}`)
+	reASSOtherTags = regexp.MustCompile(`{\\[^bius][^}]*}`)
 )
 
 // CueChange records one cue that had at least one rule applied (including full-line removal).
@@ -469,19 +473,12 @@ func convertASSFormattingToSRT(s string) string {
 	// {\X1..N} -> <X>
 	// {\X0} -> </X>
 	// X -> b, i, u, s
-
-	//Ignore other formatting
-
-	// Opening tags: {\i1}, {\b2}, etc. (any non-zero digit(s))
-	open := regexp.MustCompile(`{\\([bius])[1-9]\d*}`)
-	formatted := open.ReplaceAllString(s, "<$1>")
-	// Closing tags: {\i0}, {\b0}, etc.
-	close := regexp.MustCompile(`{\\([bius])0}`)
-	formatted = close.ReplaceAllString(formatted, "</$1>")
-
-	ignore := regexp.MustCompile(`{\\[^bius][^}]*}`)
-	formatted = ignore.ReplaceAllString(formatted, "")
-	return formatted
+	if !strings.Contains(s, `{\`) {
+		return s
+	}
+	formatted := reASSOpenTag.ReplaceAllString(s, "<$1>")
+	formatted = reASSCloseTag.ReplaceAllString(formatted, "</$1>")
+	return reASSOtherTags.ReplaceAllString(formatted, "")
 }
 
 func removeUppercaseTextWithColon(s string) (bool, string) {
