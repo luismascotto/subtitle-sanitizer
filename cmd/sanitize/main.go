@@ -48,6 +48,7 @@ func main() {
 	}
 
 	conf := rules.LoadDefaultOrEmpty()
+	prepared := transform.NewRules(conf)
 
 	rulesDisplay := conf.DescribeEffective()
 	backupJSON, err := json.MarshalIndent(conf, "", "  ")
@@ -124,7 +125,7 @@ func main() {
 			exitWithErr(err)
 		}
 
-		transformations := sanitize.Apply(*doc, conf)
+		transformations := sanitize.ApplyRules(*doc, prepared)
 
 		var final *model.Document
 		var optApply, optOverwrite bool

@@ -5,12 +5,11 @@ import (
 	"sync"
 
 	"github.com/luismascotto/subtitle-sanitizer/internal/model"
-	"github.com/luismascotto/subtitle-sanitizer/internal/rules"
 )
 
 // applyAllParallel transforms cues concurrently with a GOMAXPROCS-bounded worker pool,
 // then assembles results in input order (same observable output as sequential).
-func applyAllParallel(doc model.Document, conf rules.Config) (model.Document, []CueChange) {
+func applyAllParallel(doc model.Document, r Rules) (model.Document, []CueChange) {
 	n := len(doc.Cues)
 	if n == 0 {
 		return assembleDocument(doc, nil)
@@ -31,7 +30,7 @@ func applyAllParallel(doc model.Document, conf rules.Config) (model.Document, []
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
-				outcomes[i] = applyCue(doc.Cues[i], doc.Format, conf)
+				outcomes[i] = applyCue(doc.Cues[i], doc.Format, r)
 			}
 		}()
 	}

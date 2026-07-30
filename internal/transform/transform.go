@@ -31,9 +31,8 @@ type CueChange struct {
 	Rules       []string `json:"rules"`
 }
 
-// ApplyFn transforms a document. Sequential and parallel runners share this signature
-// so callers (and benchmarks) can swap implementations without changing call sites.
-type ApplyFn func(doc model.Document, conf rules.Config) (model.Document, []CueChange)
+// ApplyFn transforms a document using prepared Rules (compiled delimiters included).
+type ApplyFn func(doc model.Document, r Rules) (model.Document, []CueChange)
 
 // cueOutcome is the result of transforming one cue. Kept is nil when the cue is dropped.
 type cueOutcome struct {
@@ -41,22 +40,47 @@ type cueOutcome struct {
 	change *CueChange // nil when no rule fired
 }
 
-// ApplyAll runs all enabled transformations in parallel (GOMAXPROCS workers).
-// Use ApplyAllSequential when targeting WASM/TinyGo if goroutine pools misbehave.
-func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChange) {
-	return applyAllParallel(doc, conf)
+// Rules is a Config with delimiter regexes compiled once. Reuse across documents/files
+// that share the same rules; safe for concurrent Apply calls.
+type Rules struct {
+	conf   rules.Config
+	delims []compiledDelimiter
 }
 
-// ApplyAllSequential is the explicit sequential ApplyFn (same behavior as ApplyAll).
+// NewRules compiles delimiter regexes from conf. Call once per config, not per file.
+func NewRules(conf rules.Config) Rules {
+	return Rules{
+		conf:   conf,
+		delims: compileDelimiters(conf.RemoveBetweenDelimiters),
+	}
+}
+
+// Config returns the underlying rule config.
+func (r Rules) Config() rules.Config { return r.conf }
+
+// ApplyAll runs all enabled transformations in parallel (GOMAXPROCS workers).
+// Compiles delimiters once for this call; prefer NewRules + ApplyAllWithRules when
+// applying the same config to many files.
+// Use ApplyAllSequential when targeting WASM/TinyGo if goroutine pools misbehave.
+func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChange) {
+	return applyAllParallel(doc, NewRules(conf))
+}
+
+// ApplyAllWithRules applies prepared Rules (no delimiter recompilation).
+func ApplyAllWithRules(doc model.Document, r Rules) (model.Document, []CueChange) {
+	return applyAllParallel(doc, r)
+}
+
+// ApplyAllSequential is the explicit sequential ApplyFn.
 var ApplyAllSequential ApplyFn = applyAllSequential
 
-// ApplyAllParallel is the explicit parallel ApplyFn (see applyAllParallel).
+// ApplyAllParallel is the explicit parallel ApplyFn.
 var ApplyAllParallel ApplyFn = applyAllParallel
 
-func applyAllSequential(doc model.Document, conf rules.Config) (model.Document, []CueChange) {
+func applyAllSequential(doc model.Document, r Rules) (model.Document, []CueChange) {
 	outcomes := make([]cueOutcome, len(doc.Cues))
 	for i, cue := range doc.Cues {
-		outcomes[i] = applyCue(cue, doc.Format, conf)
+		outcomes[i] = applyCue(cue, doc.Format, r)
 	}
 	return assembleDocument(doc, outcomes)
 }
@@ -81,10 +105,12 @@ func assembleDocument(doc model.Document, outcomes []cueOutcome) (model.Document
 	return out, changes
 }
 
-// applyCue transforms a single cue. Safe for concurrent calls: no shared mutable state.
-func applyCue(cue *model.Cue, format model.SubtitleFormat, conf rules.Config) cueOutcome {
+// applyCue transforms a single cue. Safe for concurrent calls: no shared mutable state
+// (delimiter regexes on Rules are read-only).
+func applyCue(cue *model.Cue, format model.SubtitleFormat, r Rules) cueOutcome {
 	var rulesApplied []string
 	ruleTriggered := false
+	conf := r.conf
 
 	text := cue.Lines
 
@@ -137,8 +163,8 @@ func applyCue(cue *model.Cue, format model.SubtitleFormat, conf rules.Config) cu
 		}
 	}
 
-	if text != "" && len(conf.RemoveBetweenDelimiters) > 0 {
-		text, rulesApplied = removeTextBetweenDelimiters(text, conf.RemoveBetweenDelimiters, rulesApplied)
+	if text != "" && len(r.delims) > 0 {
+		text, rulesApplied = removeTextBetweenCompiledDelimiters(text, r.delims, rulesApplied)
 	}
 
 	if text != "" && len(rulesApplied) > 0 {
@@ -221,6 +247,81 @@ func removeTextBetweenDelimiters(text string, delimiters []rules.Delimiter, rule
 				text = strings.TrimSpace(re.ReplaceAllString(text, ""))
 				if text == "" {
 					// Skip unnecessary RemoveBetweenDelimiters rule processing
+					break
+				}
+			}
+		}
+
+		if !ruleTriggered || text == "" {
+			break
+		}
+	}
+	return text, rulesApplied
+}
+
+// compiledDelimiter holds a precompiled regex and metadata for one delimiter pair.
+type compiledDelimiter struct {
+	left     string
+	right    string
+	label    string // rule log label, e.g. `\ Delims / ( )`
+	collapse string // Left+Left when Left==Right and single rune; empty otherwise
+	re       *regexp.Regexp
+}
+
+// compileDelimiters builds reusable regexes from raw delimiter config.
+// Invalid patterns are skipped (same as removeTextBetweenDelimiters).
+func compileDelimiters(delimiters []rules.Delimiter) []compiledDelimiter {
+	out := make([]compiledDelimiter, 0, len(delimiters))
+	for _, d := range delimiters {
+		if cd, ok := compileDelimiter(d); ok {
+			out = append(out, cd)
+		}
+	}
+	return out
+}
+
+func compileDelimiter(delimiter rules.Delimiter) (compiledDelimiter, bool) {
+	controlEscape := ""
+	minContentLen := 0
+	if delimiter.Left == "<" {
+		// SRT format uses angle brackets for formatting (italic, bold, etc.), <i>Text</i>
+		minContentLen = 3
+		controlEscape = "/="
+	}
+	left := regexp.QuoteMeta(delimiter.Left)
+	right := regexp.QuoteMeta(delimiter.Right)
+	re, err := regexp.Compile(fmt.Sprintf(`%s[^%s%s]{%d,}%s`, left, controlEscape, right, minContentLen, right))
+	if err != nil {
+		fmt.Println("Error compiling regex:", err, "for delimiter:", delimiter)
+		return compiledDelimiter{}, false
+	}
+	cd := compiledDelimiter{
+		left:  delimiter.Left,
+		right: delimiter.Right,
+		label: string(rules.RuleRemoveBetweenDelimiters) + " " + delimiter.Left + " " + delimiter.Right,
+		re:    re,
+	}
+	if utf8.RuneCountInString(delimiter.Left) == 1 && delimiter.Left == delimiter.Right {
+		cd.collapse = delimiter.Left + delimiter.Left
+	}
+	return cd, true
+}
+
+// removeTextBetweenCompiledDelimiters is the precompiled-regex counterpart of
+// removeTextBetweenDelimiters (same recursive scan / rule labels).
+func removeTextBetweenCompiledDelimiters(text string, delimiters []compiledDelimiter, rulesApplied []string) (string, []string) {
+	for {
+		ruleTriggered := false
+
+		for _, d := range delimiters {
+			if d.collapse != "" {
+				text = strings.ReplaceAll(text, d.collapse, d.left)
+			}
+			if d.re.MatchString(text) {
+				ruleTriggered = true
+				rulesApplied = append(rulesApplied, d.label)
+				text = strings.TrimSpace(d.re.ReplaceAllString(text, ""))
+				if text == "" {
 					break
 				}
 			}
