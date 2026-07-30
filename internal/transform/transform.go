@@ -321,10 +321,12 @@ func removeTextBetweenCompiledDelimiters(text string, delimiters []compiledDelim
 			if d.collapse != "" {
 				text = strings.ReplaceAll(text, d.collapse, d.left)
 			}
-			if d.re.MatchString(text) {
+			// Single replace pass; regexp returns src unchanged when there is no match.
+			next := d.re.ReplaceAllString(text, "")
+			if next != text {
 				ruleTriggered = true
 				rulesApplied = append(rulesApplied, d.label)
-				text = strings.TrimSpace(d.re.ReplaceAllString(text, ""))
+				text = strings.TrimSpace(next)
 				if text == "" {
 					break
 				}
@@ -374,8 +376,12 @@ func MarkdownRows(entries []CueChange) string {
 func removeUppercaseColonWords(s string) (bool, string) {
 	// Remove words of 2+ uppercase letters.
 	// Use word boundaries to avoid partial matches. Keep punctuation spacing tidy later.
-	if len(s) > 0 && reUppercaseTextWithColon.MatchString(s) {
-		return true, reUppercaseTextWithColon.ReplaceAllString(s, "")
+	if len(s) == 0 {
+		return false, s
+	}
+	next := reUppercaseTextWithColon.ReplaceAllString(s, "")
+	if next != s {
+		return true, next
 	}
 	return false, s
 }
@@ -490,9 +496,10 @@ func removeUppercaseTextWithColon(s string) (bool, string) {
 	out := make([]string, 0)
 	removed := false
 	for line := range linesSequence {
-		if reUppercaseTextWithColon.MatchString(line) {
+		next := reUppercaseTextWithColon.ReplaceAllString(line, "")
+		if next != line {
 			removed = true
-			line = reUppercaseTextWithColon.ReplaceAllString(line, "")
+			line = next
 		}
 		out = append(out, line)
 	}
@@ -512,10 +519,11 @@ func removeTextBeforeColon(s string) (bool, string) {
 	out := make([]string, 0)
 	removed := false
 	for line := range linesSequence {
-		if reTextWithColon.MatchString(line) {
+		next := reTextWithColon.ReplaceAllString(line, "")
+		if next != line {
 			removed = true
+			line = next
 		}
-		line = reTextWithColon.ReplaceAllString(line, "")
 		out = append(out, line)
 	}
 	if removed {
