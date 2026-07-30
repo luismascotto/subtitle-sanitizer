@@ -36,24 +36,17 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 	out := model.Document{
 		Format: doc.Format,
 		Header: doc.Header,
-		Cues:   []*model.Cue{},
+		Cues:   make([]*model.Cue, 0, len(doc.Cues)),
 	}
 	var changes []CueChange
 	for _, cue := range doc.Cues {
-		rulesApplied := []string{}
+		var rulesApplied []string
 		ruleTriggered := false
 
 		text := cue.Lines
 
 		if doc.Format == model.SubtitleFormatASS {
 			text = convertASSFormattingToSRT(text)
-		}
-
-		newCue := &model.Cue{
-			Index: cue.Index,
-			Start: cue.Start,
-			End:   cue.End,
-			Lines: text,
 		}
 
 		if conf.RemoveLineIfContains != "" {
@@ -106,9 +99,8 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 		}
 
 		if text != "" && len(rulesApplied) > 0 {
-			textLines := strings.SplitSeq(text, "\n")
-			finalTextLines := []string{}
-			for line := range textLines {
+			var finalTextLines []string
+			for line := range strings.SplitSeq(text, "\n") {
 				if lineHasAlphanumeric(line) {
 					sanitizedLine := strings.TrimSpace(collapseSpaces(line))
 					if sanitizedLine != "" {
@@ -119,24 +111,29 @@ func ApplyAll(doc model.Document, conf rules.Config) (model.Document, []CueChang
 			text = strings.Join(finalTextLines, "\n")
 		}
 
-		//Simplify new cue text update. Initialize newCue.Lines with text and add to changes if rules were applied.
 		if len(rulesApplied) > 0 {
-
-			newCue.Lines = text
-
 			changes = append(changes, CueChange{
 				CueIndex:    cue.Index,
 				Original:    cue.Lines,
-				Transformed: newCue.Lines,
-				Rules:       append([]string(nil), rulesApplied...),
+				Transformed: text,
+				Rules:       rulesApplied, // ownership transfer; not reused after this
 			})
 		}
 
-		// Only add newCue to out.Cues if text is not empty
-		if text != "" {
-			out.Cues = append(out.Cues, newCue)
+		if text == "" {
+			continue
 		}
-		//out.Cues = append(out.Cues, newCue)
+		// Reuse input cue when unchanged; allocate only when text diverged (rules or ASS convert).
+		if text == cue.Lines {
+			out.Cues = append(out.Cues, cue)
+			continue
+		}
+		out.Cues = append(out.Cues, &model.Cue{
+			Index: cue.Index,
+			Start: cue.Start,
+			End:   cue.End,
+			Lines: text,
+		})
 	}
 
 	// Indexing is re-assigned during SRT formatting
