@@ -28,7 +28,8 @@ func main() {
 	var args struct {
 		Input        []string `arg:"positional"`
 		IgnoreErrors bool     `arg:"-i,--ignore-errors" help:"ignore minor errors" default:"true"`
-		MkvExtract   bool     `arg:"-m,--mkv-extract" help:"extract subtitles from mkv files" default:"false"`
+		MkvExtract   bool     `arg:"-m,--mkv-extract" help:"extract all subtitles from mkv files" default:"false"`
+		Auto         bool     `arg:"-a,--auto" help:"auto apply transformations and overwrite" default:"false"`
 	}
 	arg.MustParse(&args)
 
@@ -123,24 +124,35 @@ func main() {
 			exitWithErr(err)
 		}
 
-		result, retModel := RenderTransformations(rulesDisplay, inputPath, doc, conf)
-		retModelCheck, ok := retModel.(view.ReviewTransformationsModel)
-		if !ok {
-			exitWithErr(errors.New("retModel is not of type UIModel"))
-		}
-		if retModelCheck.Quit {
-			break
-		}
-		if retModelCheck.Skip {
-			continue
-		}
+		transformations := sanitize.Apply(*doc, conf)
+
 		var final *model.Document
-		if retModelCheck.Apply {
-			final = &result
+		var optApply, optOverwrite bool
+		if args.Auto {
+			final = &transformations.Document
+			optApply = true
+			optOverwrite = true
 		} else {
-			final = doc
+			result, retModel := RenderTransformations(rulesDisplay, inputPath, &transformations)
+			retModelCheck, ok := retModel.(view.ReviewTransformationsModel)
+			if !ok {
+				exitWithErr(errors.New("retModel is not of type UIModel"))
+			}
+			if retModelCheck.Quit {
+				break
+			}
+			if retModelCheck.Skip {
+				continue
+			}
+			if retModelCheck.Apply {
+				final = &result
+			} else {
+				final = doc
+			}
+			optApply = retModelCheck.Apply
+			optOverwrite = retModelCheck.Overwrite
 		}
-		ApplyTransformations(inputPath, retModelCheck, final)
+		ApplyTransformations(inputPath, final, optApply, optOverwrite)
 	}
 }
 
@@ -166,23 +178,23 @@ func ReadFileContent(inputPath string) []byte {
 	return data
 }
 
-func ApplyTransformations(inputPath string, retModelCheck view.ReviewTransformationsModel, result *model.Document) {
-	if result.Format == model.SubtitleFormatSRT && retModelCheck.Overwrite && !retModelCheck.Apply {
+func ApplyTransformations(inputPath string, result *model.Document, apply, overwrite bool) {
+	if result.Format == model.SubtitleFormatSRT && overwrite && !apply {
 		return
 	}
-	outPath := deriveOutputPath(inputPath, retModelCheck.Overwrite)
+	outPath := deriveOutputPath(inputPath, overwrite)
 
 	outData := subtitle.FormatSRT(*result) // Always save as .srt
 	if err := os.WriteFile(outPath, outData, 0644); err != nil {
 		exitWithErr(fmt.Errorf("write output: %w", err))
 	}
 
-	if result.Format == model.SubtitleFormatASS && retModelCheck.Overwrite {
+	if result.Format == model.SubtitleFormatASS && overwrite {
 		_ = os.Remove(inputPath)
 	}
 }
 
-func RenderTransformations(rulesDisplay string, inputPath string, doc *model.Document, conf rules.Config) (model.Document, tea.Model) {
+func RenderTransformations(rulesDisplay string, inputPath string, transformations *sanitize.Result) (model.Document, tea.Model) {
 	sbContent := strings.Builder{}
 	sbContent.WriteString("\n\n# Subtitle Sanitizer\n\n## Active rules\n\n```\n")
 	sbContent.WriteString(rulesDisplay)
@@ -190,13 +202,11 @@ func RenderTransformations(rulesDisplay string, inputPath string, doc *model.Doc
 
 	sbContent.WriteString("## " + filepath.Base(inputPath) + "\n")
 
-	res := sanitize.Apply(*doc, conf)
-
 	sbContent.WriteString("## Transformations\n")
-	if len(res.Changes) > 0 {
+	if len(transformations.Changes) > 0 {
 		sbContent.WriteString("| Pos# | Original | Transformed/removed/empty | Rules |\n")
 		sbContent.WriteString("| --- | --- | --- | --- |\n")
-		sbContent.WriteString(transform.MarkdownRows(res.Changes))
+		sbContent.WriteString(transform.MarkdownRows(transformations.Changes))
 	} else {
 		sbContent.WriteString("Nothing to remove...\n")
 	}
@@ -211,7 +221,7 @@ func RenderTransformations(rulesDisplay string, inputPath string, doc *model.Doc
 		exitWithErr(fmt.Errorf("run tea program: %w", err))
 	}
 	//time.Sleep(1 * time.Second)
-	return res.Document, retModel
+	return transformations.Document, retModel
 }
 
 func validateInputPath(p string) error {
