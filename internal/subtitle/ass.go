@@ -123,28 +123,33 @@ func parseASSEventsBlock(blocks []string) ([]*model.Cue, error) {
 
 func parseASSTime(s string) (time.Duration, error) {
 	// h:mm:ss.cs (ASS/SSA uses centiseconds after '.')
+	// Cut avoids []string allocations from Split (see ass_bench_test.go).
 	s = strings.TrimSpace(s)
-	hmsMillis := strings.Split(s, ".")
-	if len(hmsMillis) != 2 {
+	hmsPart, frac, ok := strings.Cut(s, ".")
+	if !ok || strings.Contains(frac, ".") {
 		return 0, errors.New("missing millis")
 	}
-	hms := strings.Split(hmsMillis[0], ":")
-	if len(hms) != 3 {
+	hStr, rest, ok := strings.Cut(hmsPart, ":")
+	if !ok {
 		return 0, errors.New("invalid h:m:s")
 	}
-	h, err := strconv.Atoi(hms[0])
+	mStr, sStr, ok := strings.Cut(rest, ":")
+	if !ok || strings.Contains(sStr, ":") {
+		return 0, errors.New("invalid h:m:s")
+	}
+	h, err := strconv.Atoi(hStr)
 	if err != nil {
 		return 0, err
 	}
-	m, err := strconv.Atoi(hms[1])
+	m, err := strconv.Atoi(mStr)
 	if err != nil {
 		return 0, err
 	}
-	si, err := strconv.Atoi(hms[2])
+	si, err := strconv.Atoi(sStr)
 	if err != nil {
 		return 0, err
 	}
-	frac := strings.TrimSpace(hmsMillis[1])
+	frac = strings.TrimSpace(frac)
 	// ASS typically uses centiseconds (2 digits). Handle robustly:
 	// - 1 digit: tenths (x100 ms)
 	// - 2 digits: centiseconds (x10 ms)
@@ -170,9 +175,8 @@ func parseASSTime(s string) (time.Duration, error) {
 		return 0, err
 	}
 	ms := msVal * msMultiplier
-	total := time.Duration(h)*time.Hour +
+	return time.Duration(h)*time.Hour +
 		time.Duration(m)*time.Minute +
 		time.Duration(si)*time.Second +
-		time.Duration(ms)*time.Millisecond
-	return total, nil
+		time.Duration(ms)*time.Millisecond, nil
 }
