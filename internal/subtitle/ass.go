@@ -76,23 +76,23 @@ func splitASSBlocks(data []byte) [][]string {
 	return out
 }
 
-func parseASSEventsBlock(blk []string) ([]*model.Cue, error) {
-	if len(blk) < 3 {
+func parseASSEventsBlock(blocks []string) ([]*model.Cue, error) {
+	if len(blocks) < 3 {
 		return nil, errors.New("events block too short")
 	}
 	// First line is [Events]
-	_, _ = strconv.Atoi(strings.TrimSpace(blk[0])) // ignore parsing errors; some files omit or duplicate
+	_, _ = strconv.Atoi(strings.TrimSpace(blocks[0])) // ignore parsing errors; some files omit or duplicate
 	dialoguesStartIndex := 1
-	for dialoguesStartIndex < len(blk) && !strings.Contains(blk[dialoguesStartIndex], "Dialogue:") {
+	for dialoguesStartIndex < len(blocks) && !strings.Contains(blocks[dialoguesStartIndex], "Dialogue:") {
 		dialoguesStartIndex++
 	}
-	if dialoguesStartIndex >= len(blk) {
+	if dialoguesStartIndex >= len(blocks) {
 		return nil, errors.New("no dialogue lines found")
 	}
-	cues := make([]*model.Cue, 0, len(blk)-dialoguesStartIndex)
+	cues := make([]*model.Cue, 0, len(blocks)-dialoguesStartIndex)
 	// Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 	// Dialogue: 0,0:00:04.87,0:00:06.00,Default,,0,0,0,,[Tommy]\NThe president of every bank,
-	for _, dialogue := range blk[dialoguesStartIndex:] {
+	for index, dialogue := range blocks[dialoguesStartIndex:] {
 		if strings.TrimSpace(dialogue) == "" {
 			continue
 		}
@@ -112,6 +112,7 @@ func parseASSEventsBlock(blk []string) ([]*model.Cue, error) {
 		}
 
 		cues = append(cues, &model.Cue{
+			Index: index + 1,
 			Start: start,
 			End:   end,
 			Lines: strings.ReplaceAll(strings.TrimSpace(parts[textIndex]), "\\N", "\n"),
