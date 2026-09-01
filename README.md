@@ -34,6 +34,20 @@ The same sanitize pipeline is exposed as JSON in/out via `internal/wasmbridge` (
 - **Cloudflare Pages (static only):** see `cloudflare/README.md` — no Worker; WASM runs in the browser.
 - **CI:** `.github/workflows/wasm.yml` runs tests and uploads a `wasm-demo` artifact.
 
+## Mobile (Capacitor)
+
+A minimal SPA + Capacitor shell lives in `web/app/` for learning native mobile packaging.
+
+```bash
+cd web/app
+npm install
+npm run serve         # browser preview at http://localhost:4173
+npm run cap:sync      # build WASM + sync to Android/iOS projects
+npm run cap:android   # open Android Studio
+```
+
+See `web/app/README.md` for prerequisites and workflow.
+
 ## Roadmap
 - Implement robust `.ass` parsing and conversion to SRT
 - Expand rules via external JSON (regex-based, bracket text removal, etc.)

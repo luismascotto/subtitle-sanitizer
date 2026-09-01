@@ -1,0 +1,10 @@
+node_modules/
+android/
+ios/
+.capacitor/
+dist/
+
+# Produced by build:wasm (Go WASM artifacts copied to public/)
+public/wasm_exec.js
+public/sanitize-go.wasm
+public/sanitize-tinygo.wasm

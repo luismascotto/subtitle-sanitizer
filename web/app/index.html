@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Subtitle Sanitizer</title>
+  <link rel="stylesheet" href="/src/app.css" />
+</head>
+<body>
+  <header class="header">
+    <h1>Subtitle Sanitizer</h1>
+    <p class="subtitle">WASM · Capacitor mobile shell</p>
+  </header>
+
+  <main class="main">
+    <section class="card">
+      <label class="label" for="subtitleFile">Subtitle file</label>
+      <input type="file" id="subtitleFile" accept=".srt,.ass,.txt" />
+      <p id="fileName" class="hint"></p>
+
+      <label class="label" for="sub">Or paste subtitle text</label>
+      <textarea id="sub" spellcheck="false" placeholder="Paste SRT or ASS content…"></textarea>
+    </section>
+
+    <section class="card">
+      <label class="label" for="cfg">Rules JSON</label>
+      <textarea id="cfg" spellcheck="false"></textarea>
+    </section>
+
+    <div class="actions">
+      <button type="button" id="run" class="btn primary" disabled>Sanitize</button>
+      <button type="button" id="save" class="btn" disabled>Save .srt</button>
+    </div>
+
+    <p id="status" class="status">Loading WASM…</p>
+
+    <section class="card">
+      <label class="label" for="srtOut">Output</label>
+      <textarea id="srtOut" spellcheck="false" readonly placeholder="Sanitized SRT appears here"></textarea>
+    </section>
+
+    <details class="card changes">
+      <summary>Rules triggered</summary>
+      <pre id="changes"></pre>
+    </details>
+  </main>
+
+  <script src="/wasm_exec.js"></script>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

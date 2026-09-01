@@ -1,4 +1,4 @@
-.PHONY: test wasm wasm-tinygo wasm-pages clean-wasm
+.PHONY: test wasm wasm-tinygo wasm-pages wasm-app clean-wasm
 
 # Native tests (includes wasmbridge golden fixture).
 test:
@@ -29,6 +29,14 @@ wasm-pages: wasm
 	@test -f dist/sanitize-tinygo.wasm && cp dist/sanitize-tinygo.wasm web/wasm-demo/ || true
 	@echo "Ready: npx --yes serve web/wasm-demo  then open http://localhost:3000"
 
+# Copy WASM assets into the Capacitor SPA (web/app/public/ for Vite).
+wasm-app: wasm
+	@mkdir -p web/app/public
+	cp dist/wasm_exec.js dist/sanitize-go.wasm web/app/public/
+	@test -f dist/sanitize-tinygo.wasm && cp dist/sanitize-tinygo.wasm web/app/public/ || true
+	@echo "Ready: cd web/app && npm run cap:sync"
+
 clean-wasm:
 	rm -f dist/*.wasm dist/wasm_exec.js
 	rm -f web/wasm-demo/wasm_exec.js web/wasm-demo/sanitize-go.wasm web/wasm-demo/sanitize-tinygo.wasm
+	rm -f web/app/public/wasm_exec.js web/app/public/sanitize-go.wasm web/app/public/sanitize-tinygo.wasm

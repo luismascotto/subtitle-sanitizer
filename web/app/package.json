@@ -1,0 +1,29 @@
+{
+  "name": "subtitle-sanitizer-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capacitor mobile shell for subtitle-sanitizer WASM",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "build:all": "npm run build:wasm && npm run build",
+    "cap:sync": "npm run build:all && cap sync",
+    "cap:android": "cap open android",
+    "cap:ios": "cap open ios",
+    "preview": "vite preview",
+    "serve": "npm run build:all && vite preview"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.4.2",
+    "@capacitor/filesystem": "^7.1.4",
+    "@capacitor/share": "^7.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.4.2",
+    "@capacitor/cli": "^7.4.2",
+    "@capacitor/ios": "^7.4.2",
+    "vite": "^7.1.3"
+  }
+}

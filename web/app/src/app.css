@@ -1,0 +1,161 @@
+:root {
+  color-scheme: light dark;
+  --bg: #0f1115;
+  --surface: #1a1d24;
+  --border: #2d3340;
+  --text: #eef1f6;
+  --muted: #9aa3b2;
+  --accent: #5b9cff;
+  --accent-pressed: #3d7fe0;
+  --danger: #ff6b6b;
+  --radius: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --border: #d8dee9;
+    --text: #1b2430;
+    --muted: #5c677a;
+    --accent: #2563eb;
+    --accent-pressed: #1d4ed8;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding:
+    calc(1rem + var(--safe-top))
+    1rem
+    calc(1.5rem + var(--safe-bottom));
+}
+
+.header {
+  margin-bottom: 1rem;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.875rem;
+}
+
+.label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+}
+
+textarea {
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  background: transparent;
+  color: inherit;
+}
+
+#cfg {
+  min-height: 5.5rem;
+}
+
+#srtOut {
+  min-height: 9rem;
+}
+
+input[type="file"] {
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.hint,
+.status {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.status.error {
+  color: var(--danger);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  flex: 1;
+  min-height: 2.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn.primary:not(:disabled):active {
+  background: var(--accent-pressed);
+}
+
+.changes summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.changes pre {
+  margin: 0.75rem 0 0;
+  white-space: pre-wrap;
+  font-size: 0.78rem;
+  color: var(--muted);
+}

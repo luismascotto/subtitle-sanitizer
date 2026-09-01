@@ -1,0 +1,8 @@
+{
+  "appId": "com.subtitlesanitizer.app",
+  "appName": "Subtitle Sanitizer",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

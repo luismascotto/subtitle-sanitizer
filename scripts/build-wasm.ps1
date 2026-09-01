@@ -29,14 +29,19 @@ finally {
 # }
 
 $distDir = Join-Path $root "dist"
-$demo = Join-Path $root "web\wasm-demo"
-New-Item -ItemType Directory -Force -Path $demo | Out-Null
-Copy-Item -Force (Join-Path $distDir "wasm_exec.js"), (Join-Path $distDir "sanitize-go.wasm") $demo
-if (Test-Path (Join-Path $distDir "sanitize-tinygo.wasm")) {
-    # //Write-Host "WASM tinygo built successfully"
-    Copy-Item -Force (Join-Path $distDir "sanitize-tinygo.wasm") $demo
+$targets = @(
+    (Join-Path $root "web\wasm-demo"),
+    (Join-Path $root "web\app\public")
+)
+foreach ($target in $targets) {
+    New-Item -ItemType Directory -Force -Path $target | Out-Null
+    Copy-Item -Force (Join-Path $distDir "wasm_exec.js"), (Join-Path $distDir "sanitize-go.wasm") $target
+    if (Test-Path (Join-Path $distDir "sanitize-tinygo.wasm")) {
+        Copy-Item -Force (Join-Path $distDir "sanitize-tinygo.wasm") $target
+    }
 }
-Write-Host "wasm-demo: $demo  (e.g. npx --yes serve web/wasm-demo)"
+Write-Host "wasm-demo: $(Join-Path $root 'web\wasm-demo')  (e.g. npx --yes serve web/wasm-demo)"
+Write-Host "capacitor: $(Join-Path $root 'web\app')  (cd web/app && npm run cap:sync)"
 
 Get-ChildItem dist\*.wasm | ForEach-Object { Write-Host ("{0}`t{1:N0} bytes" -f $_.Name, $_.Length) }
 
