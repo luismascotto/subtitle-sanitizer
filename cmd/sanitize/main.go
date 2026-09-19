@@ -219,11 +219,11 @@ func RenderTransformations(rulesDisplay string, inputPath string, transformation
 	sbContent := strings.Builder{}
 	sbContent.WriteString("\n\n# Subtitle Sanitizer\n\n## Active rules\n\n```\n")
 	sbContent.WriteString(rulesDisplay)
-	sbContent.WriteString("\n```\n\n")
+	sbContent.WriteString("\n```\n\n## ")
 
-	sbContent.WriteString("## " + filepath.Base(inputPath) + "\n")
+	sbContent.WriteString(filepath.Base(inputPath))
 
-	sbContent.WriteString("## Transformations\n")
+	sbContent.WriteString("\n## Transformations\n")
 	if len(transformations.Changes) > 0 {
 		sbContent.WriteString("| Pos# | Original | Transformed/removed/empty | Rules |\n")
 		sbContent.WriteString("| --- | --- | --- | --- |\n")

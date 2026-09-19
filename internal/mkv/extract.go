@@ -11,15 +11,24 @@ import (
 )
 
 type subtitleTrack struct {
-	Index         int    `json:"index"`
-	Codec         string `json:"codec_name"`
-	CodecTag      string `json:"codec_tag_string"`
-	CodecLongName string `json:"codec_long_name"`
-	Tags          Tag    `json:"tags"`
+	Index         int         `json:"index"`
+	Codec         string      `json:"codec_name"`
+	CodecTag      string      `json:"codec_tag_string"`
+	CodecLongName string      `json:"codec_long_name"`
+	DurationTs    int64       `json:"duration_ts"`
+	Dispositions  Disposition `json:"disposition"`
+	Tags          Tag         `json:"tags"`
 }
 type Tag struct {
 	Language string `json:"language"`
 	Title    string `json:"title"`
+}
+
+type Disposition struct {
+	Default         int `json:"default"`
+	Forced          int `json:"forced"`
+	Original        int `json:"original"`
+	HearingImpaired int `json:"hearing_impaired"`
 }
 
 type ffprobeOutput struct {
@@ -50,11 +59,11 @@ func subtitleTrackOrders(a, b subtitleTrack) bool {
 	if engA != engB {
 		return engA
 	}
-	sdhA, sdhB := titleContainsSDH(trackTitle(a)), titleContainsSDH(trackTitle(b))
+	sdhA, sdhB := titleContainsSDH(trackTitle(a)) || a.Dispositions.HearingImpaired == 1, titleContainsSDH(trackTitle(b)) || b.Dispositions.HearingImpaired == 1
 	if sdhA != sdhB {
 		return !sdhA
 	}
-	forcedA, forcedB := titleContainsForced(trackTitle(a)), titleContainsForced(trackTitle(b))
+	forcedA, forcedB := titleContainsForced(trackTitle(a)) || a.Dispositions.Forced == 1, titleContainsForced(trackTitle(b)) || b.Dispositions.Forced == 1
 	if forcedA != forcedB {
 		return !forcedA
 	}
@@ -201,7 +210,7 @@ func probeSubtitleTracks(inputPath string) ([]subtitleTrack, error) {
 		"ffprobe",
 		"-v", "error",
 		"-select_streams", "s",
-		"-show_entries", "stream=index,codec_name,codec_tag_string,codec_long_name:stream_tags=language,title",
+		"-show_entries", "stream=index,codec_name,codec_tag_string,codec_long_name,duration_ts:stream_disposition=default,forced,original,hearing_impaired:stream_tags=language,title",
 		"-of", "json",
 		inputPath,
 	)
