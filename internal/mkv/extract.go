@@ -2,7 +2,6 @@ package mkv
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -86,7 +85,7 @@ func ExtractSingleSubtitle(inputPath string) (string, []byte, error) {
 		return "", nil, err
 	}
 	if path == nil || *path == "" {
-		return "", nil, errors.New("no subtitle tracks extracted")
+		return "", nil, nil
 	}
 	data, err := os.ReadFile(*path)
 	if err != nil {
@@ -105,7 +104,7 @@ func ExtractMultipleSubtitles(inputPath string, maxTracks int) (first *string, l
 		return nil, nil, err
 	}
 	if len(tracks) == 0 {
-		return nil, nil, errors.New("no subtitle tracks found in mkv")
+		return nil, []string{}, nil
 	}
 	sort.Slice(tracks, func(i, j int) bool {
 		return subtitleTrackOrders(tracks[i], tracks[j])

@@ -66,8 +66,9 @@ func main() {
 		time.Sleep(1 * time.Second)
 		return
 	}
-
+	var errLoader error
 	for _, inputPath := range args.Input {
+		fileName := filepath.Base(inputPath)
 		var data []byte
 		var err error
 
@@ -80,35 +81,47 @@ func main() {
 			loader := tea.NewProgram(view.NewLoaderModel())
 
 			go func() {
-				loader.Send(view.LoaderMsg{Message: fmt.Sprintf("Extracting from %s", filepath.Base(inputPath)), Quit: false})
+				loader.Send(view.LoaderMsg{Message: fmt.Sprintf("%s -> Extracting", fileName), Quit: false})
 				inputPath, data, err = mkv.ExtractSingleSubtitle(inputPath)
 				if err != nil {
-					loader.Send(view.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: false})
+					loader.Send(view.LoaderMsg{Message: fmt.Sprintf("%s -> Error extracting", fileName), Quit: false})
 					time.Sleep(2 * time.Second)
-					loader.Send(view.LoaderMsg{Message: "Error extracting subtitles from MKV file", Quit: true})
+					loader.Send(view.LoaderMsg{Message: "", Quit: true})
+				} else if data != nil {
+					loader.Send(view.LoaderMsg{Message: fmt.Sprintf("%s -> Subtitles extracted", fileName), Quit: true})
 				} else {
-					loader.Send(view.LoaderMsg{Message: "Subtitles extracted successfully", Quit: true})
+					loader.Send(view.LoaderMsg{Message: fmt.Sprintf("%s -> No subtitles found", fileName), Quit: false})
+					time.Sleep(2 * time.Second)
+					loader.Send(view.LoaderMsg{Message: "", Quit: true})
 				}
 			}()
 
-			if _, err := loader.Run(); err != nil {
-				exitWithErr(fmt.Errorf("run loader program: %w", err))
+			if _, runErr := loader.Run(); runErr != nil {
+				exitWithErr(fmt.Errorf("run loader program: %w", runErr))
 			}
 
+			// Thia error is for current file, not for the batch process
+			// Add to print all in the error message
 			if err != nil {
-				exitWithErr(fmt.Errorf("extract mkv subtitles: %w", err))
+				errLoader = errors.Join(errLoader, fmt.Errorf("file: %s: %w", fileName, err))
 			}
 
+			//inputPath is the path to the extracted subtitle changed inside goroutine
+			if len(data) == 0 || len(inputPath) == 0 {
+				continue
+			}
+
+			//Re-check the extension of the extracted subtitle
 			ext = strings.ToLower(filepath.Ext(inputPath))
 			if ext == "" {
 				exitWithErr(fmt.Errorf("extension is empty"))
 			}
+
 		} else {
 			data = ReadFileContent(inputPath)
-		}
-
-		if len(data) == 0 {
-			exitWithErr(fmt.Errorf("data is empty"))
+			if len(data) == 0 {
+				errLoader = errors.Join(errLoader, fmt.Errorf("file: %s: data is empty", inputPath))
+			}
 		}
 
 		format := model.SubtitleFormatUnknown
@@ -118,7 +131,11 @@ func main() {
 		case ".ass":
 			format = model.SubtitleFormatASS
 		default:
-			exitWithErr(fmt.Errorf("unsupported extension: %s", ext))
+			if len(ext) > 1 {
+				errLoader = errors.Join(errLoader, fmt.Errorf("unsupported subtitle format: %s: %s", inputPath, ext))
+			} else {
+				errLoader = errors.Join(errLoader, fmt.Errorf("invalid input file: %s", fileName))
+			}
 		}
 		doc, err := subtitle.Parse(data, format)
 		if err != nil {
@@ -154,6 +171,9 @@ func main() {
 			optOverwrite = retModelCheck.Overwrite
 		}
 		ApplyTransformations(inputPath, final, optApply, optOverwrite)
+	}
+	if errLoader != nil {
+		exitWithErr(errLoader)
 	}
 }
 
