@@ -30,8 +30,22 @@ func main() {
 		IgnoreErrors bool     `arg:"-i,--ignore-errors" help:"ignore minor errors" default:"true"`
 		MkvExtract   bool     `arg:"-m,--mkv-extract" help:"extract all subtitles from mkv files" default:"false"`
 		Auto         bool     `arg:"-a,--auto" help:"auto apply transformations and overwrite" default:"false"`
+		Dir          string   `arg:"-d,--dir" help:"directory to scan for .mkv files without <name>*.srt/.ass counterpart (path must contain 'serie' or 'film')"`
 	}
 	arg.MustParse(&args)
+
+	// Must run before normalizePwdPath, which changes the working directory.
+	if args.Dir != "" {
+		dirInputs, err := collectDirInputs(args.Dir)
+		if err != nil {
+			exitWithErr(err)
+		}
+		if len(dirInputs) == 0 && len(args.Input) == 0 {
+			fmt.Println("Nothing to process in directory:", args.Dir)
+			return
+		}
+		args.Input = append(args.Input, dirInputs...)
+	}
 
 	normalizePwdPath()
 
@@ -260,6 +274,74 @@ func validateInputPath(p string) error {
 	default:
 		return fmt.Errorf("unsupported extension: %s (only .srt, .ass)", ext)
 	}
+}
+
+var mediaDirKeywords = []string{"serie", "film"}
+
+// collectDirInputs returns .mkv files (non-recursive) lacking a <name>*.srt or <name>*.ass sibling,
+// or nil if the directory path does not contain any media keyword.
+func collectDirInputs(dir string) ([]string, error) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve directory: %w", err)
+	}
+	stat, err := os.Stat(absDir)
+	if err != nil {
+		return nil, fmt.Errorf("stat directory: %w", err)
+	}
+	if !stat.IsDir() {
+		return nil, fmt.Errorf("not a directory: %s", absDir)
+	}
+
+	lowerDir := strings.ToLower(absDir)
+	matched := false
+	for _, keyword := range mediaDirKeywords {
+		if strings.Contains(lowerDir, keyword) {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		fmt.Printf("Skipping directory (path does not contain %s): %s\n", strings.Join(mediaDirKeywords, " or "), absDir)
+		return nil, nil
+	}
+
+	entries, err := os.ReadDir(absDir)
+	if err != nil {
+		return nil, fmt.Errorf("read directory: %w", err)
+	}
+	var mkvNames, subtitleNames []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		switch strings.ToLower(filepath.Ext(name)) {
+		case ".mkv":
+			mkvNames = append(mkvNames, name)
+		case ".srt", ".ass":
+			subtitleNames = append(subtitleNames, strings.ToLower(name))
+		}
+	}
+
+	var inputs []string
+	for _, mkvName := range mkvNames {
+		prefix := strings.ToLower(strings.TrimSuffix(mkvName, filepath.Ext(mkvName)))
+		if hasPrefixMatch(subtitleNames, prefix) {
+			continue
+		}
+		inputs = append(inputs, filepath.Join(absDir, mkvName))
+	}
+	return inputs, nil
+}
+
+func hasPrefixMatch(names []string, prefix string) bool {
+	for _, name := range names {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func deriveOutputPath(inputPath string, overwrite bool) string {
