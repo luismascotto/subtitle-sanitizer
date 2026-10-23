@@ -10,6 +10,12 @@ func trackWith(lang, title string, index int) subtitleTrack {
 	return subtitleTrack{Index: index, Tags: tags}
 }
 
+func trackWithDisp(lang, title string, index int, forced, hearingImpaired int) subtitleTrack {
+	t := trackWith(lang, title, index)
+	t.Dispositions = Disposition{Forced: forced, HearingImpaired: hearingImpaired}
+	return t
+}
+
 func TestSubtitleExtension(t *testing.T) {
 	t.Parallel()
 
@@ -77,6 +83,36 @@ func TestSubtitleTrackOrders(t *testing.T) {
 			b:    trackWith("spa", "Español SDH", 1),
 			want: true,
 		},
+		{
+			name: "eng SDH before eng Forced (title)",
+			a:    trackWith("eng", "English SDH", 2),
+			b:    trackWith("eng", "English Forced", 1),
+			want: true,
+		},
+		{
+			name: "eng SDH before eng Forced (disposition)",
+			a:    trackWithDisp("eng", "English SDH", 2, 0, 0),
+			b:    trackWithDisp("eng", "English", 1, 1, 0),
+			want: true,
+		},
+		{
+			name: "eng puro before eng SDH",
+			a:    trackWith("eng", "English", 1),
+			b:    trackWith("eng", "English SDH", 0),
+			want: true,
+		},
+		{
+			name: "non-eng non-forced before any Forced",
+			a:    trackWith("spa", "Español", 5),
+			b:    trackWith("eng", "English Forced", 1),
+			want: true,
+		},
+		{
+			name: "Forced+SDH still ranks as Forced (after eng SDH)",
+			a:    trackWith("eng", "English SDH", 2),
+			b:    trackWith("eng", "English SDH Forced", 1),
+			want: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -96,25 +132,25 @@ func TestSubtitleTrackOrders(t *testing.T) {
 func TestSubtitleTrackOrdersSortsSlice(t *testing.T) {
 	t.Parallel()
 	tracks := []subtitleTrack{
-		trackWith("spa", "SDH", 0),
-		trackWith("eng", "SDH", 1),
-		trackWith("eng", "Plain", 2),
-		trackWith("fre", "Plain", 3),
+		trackWith("eng", "English Forced", 1),
+		trackWith("eng", "English SDH", 2),
+		trackWith("spa", "Español", 3),
+		trackWith("eng", "English", 4),
 	}
 	sort.Slice(tracks, func(i, j int) bool {
 		return subtitleTrackOrders(tracks[i], tracks[j])
 	})
-	// eng first (Plain then SDH), then non-eng without SDH before SDH (fre then spa).
-	if trackLanguage(tracks[0]) != "eng" || trackTitle(tracks[0]) != "Plain" {
-		t.Fatalf("first track: lang=%q title=%q", trackLanguage(tracks[0]), trackTitle(tracks[0]))
+	// 0 eng puro, 1 eng SDH, 2 other non-forced, 3 any Forced
+	want := []struct{ lang, title string }{
+		{"eng", "English"},
+		{"eng", "English SDH"},
+		{"spa", "Español"},
+		{"eng", "English Forced"},
 	}
-	if trackLanguage(tracks[1]) != "eng" || !titleContainsSDH(trackTitle(tracks[1])) {
-		t.Fatalf("second track: want eng SDH")
-	}
-	if trackLanguage(tracks[2]) != "fre" || titleContainsSDH(trackTitle(tracks[2])) {
-		t.Fatalf("third track: want fre non-SDH")
-	}
-	if trackLanguage(tracks[3]) != "spa" || !titleContainsSDH(trackTitle(tracks[3])) {
-		t.Fatalf("fourth track: want spa SDH")
+	for i, w := range want {
+		if trackLanguage(tracks[i]) != w.lang || trackTitle(tracks[i]) != w.title {
+			t.Fatalf("tracks[%d]: lang=%q title=%q, want lang=%q title=%q",
+				i, trackLanguage(tracks[i]), trackTitle(tracks[i]), w.lang, w.title)
+		}
 	}
 }
