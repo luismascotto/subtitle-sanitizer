@@ -78,9 +78,9 @@ func TestSubtitleTrackOrders(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "non-eng: non-SDH before SDH",
-			a:    trackWith("spa", "Español", 5),
-			b:    trackWith("spa", "Español SDH", 1),
+			name: "non-eng same rank: lower index",
+			a:    trackWith("spa", "Español SDH", 1),
+			b:    trackWith("spa", "Español", 5),
 			want: true,
 		},
 		{

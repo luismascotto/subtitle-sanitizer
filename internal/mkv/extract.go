@@ -53,19 +53,37 @@ func titleContainsForced(title string) bool {
 	return strings.Contains(strings.ToLower(title), "forced")
 }
 
-// subtitleTrackOrders reports whether a should sort before b: English (eng) first, then titles without "sdh", then stream index.
+func isSDH(t subtitleTrack) bool {
+	return titleContainsSDH(trackTitle(t)) || t.Dispositions.HearingImpaired == 1
+}
+
+func isForced(t subtitleTrack) bool {
+	return titleContainsForced(trackTitle(t)) || t.Dispositions.Forced == 1
+}
+
+// subtitleTrackPriority returns sort rank (lower first):
+// 0 = eng puro, 1 = eng SDH, 2 = other non-forced, 3 = any Forced.
+func subtitleTrackPriority(t subtitleTrack) int {
+	if isForced(t) {
+		return 3
+	}
+	eng := trackLanguage(t) == "eng"
+	sdh := isSDH(t)
+	if eng && !sdh {
+		return 0
+	}
+	if eng && sdh {
+		return 1
+	}
+	return 2
+}
+
+// subtitleTrackOrders reports whether a should sort before b.
+// Order: eng puro, eng SDH, other non-forced, any Forced; then stream index.
 func subtitleTrackOrders(a, b subtitleTrack) bool {
-	engA, engB := trackLanguage(a) == "eng", trackLanguage(b) == "eng"
-	if engA != engB {
-		return engA
-	}
-	sdhA, sdhB := titleContainsSDH(trackTitle(a)) || a.Dispositions.HearingImpaired == 1, titleContainsSDH(trackTitle(b)) || b.Dispositions.HearingImpaired == 1
-	if sdhA != sdhB {
-		return !sdhA
-	}
-	forcedA, forcedB := titleContainsForced(trackTitle(a)) || a.Dispositions.Forced == 1, titleContainsForced(trackTitle(b)) || b.Dispositions.Forced == 1
-	if forcedA != forcedB {
-		return !forcedA
+	pa, pb := subtitleTrackPriority(a), subtitleTrackPriority(b)
+	if pa != pb {
+		return pa < pb
 	}
 	return a.Index < b.Index
 }
