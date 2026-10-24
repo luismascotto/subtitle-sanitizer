@@ -1,0 +1,20 @@
+id = "sanitize-subripr"
+name = "Sanitize Subripr"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Declutter SRT subtitles with sanitize --auto (prompt for input and output paths)."
+platforms = ["linux", "macos", "windows"]
+
+[[actions]]
+id = "declutter"
+title = "Declutter SRT"
+contexts = ["workspace"]
+command = ["go", "run", ".", "open"]
+
+[[panes]]
+id = "declutter"
+title = "Sanitize Subripr"
+placement = "popup"
+width = "70%"
+height = 18
+command = ["go", "run", "."]

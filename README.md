@@ -5,17 +5,26 @@ A small CLI tool to sanitize subtitles by removing configurable levels of Hearin
 
 ## Install
 ```bash
-go build -o subtitle-sanitizer ./cmd/sanitize
+go install github.com/luismascotto/subtitle-sanitizer/cmd/sanitize@latest
+# or locally:
+go install ./cmd/sanitize
 ```
 
 ## Usage
 ```bash
-subtitle-sanitizer /path/to/file1.srt /path/to/file2.ass /path/to/file3.mkv
+sanitize /path/to/file1.srt /path/to/file2.ass /path/to/file3.mkv
+sanitize --auto --output /path/to/clean.srt /path/to/raw.srt
 ```
 
 Options:
 - `PATH1 [PATH2] [--mkv-extract, -m]`, (default false): extract all subtitles from files only
     --mkv-extract, -m: skip sanitization and extract all subtitles
+- `--auto, -a`: apply transformations without interactive review (overwrites in place unless `--output` is set)
+- `--output, -o`: write result to this `.srt` path (exactly one input)
+
+### Herdr plugin
+
+See [`plugins/sanitize-subripr/README.md`](plugins/sanitize-subripr/README.md) for the `sanitize-subripr` popup workflow.
 
 Checks for config.json, and when not found, saves a config.backup.json with default options
 For sanitization, detects MKV arg and extracts one subtitle (english, no sdh first on language/description tags) and forwards to the workflow.

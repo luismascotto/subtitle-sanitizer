@@ -30,6 +30,7 @@ func main() {
 		IgnoreErrors bool     `arg:"-i,--ignore-errors" help:"ignore minor errors" default:"true"`
 		MkvExtract   bool     `arg:"-m,--mkv-extract" help:"extract all subtitles from mkv files" default:"false"`
 		Auto         bool     `arg:"-a,--auto" help:"auto apply transformations and overwrite" default:"false"`
+		Output       string   `arg:"-o,--output" help:"write result to this .srt path (requires exactly one input)"`
 		Dir          string   `arg:"-d,--dir" help:"directory to scan for .mkv files without <name>*.srt/.ass counterpart (path must contain 'serie' or 'film')"`
 	}
 	arg.MustParse(&args)
@@ -53,6 +54,9 @@ func main() {
 
 	if len(args.Input) == 0 {
 		exitWithErr(errors.New("no input files provided"))
+	}
+	if args.Output != "" && len(args.Input) != 1 {
+		exitWithErr(errors.New("--output requires exactly one input file"))
 	}
 	for _, inputPath := range args.Input {
 		ext := strings.ToLower(filepath.Ext(inputPath))
@@ -184,7 +188,9 @@ func main() {
 			optApply = retModelCheck.Apply
 			optOverwrite = retModelCheck.Overwrite
 		}
-		ApplyTransformations(inputPath, final, optApply, optOverwrite)
+		if err := ApplyTransformations(inputPath, final, optApply, optOverwrite, args.Output); err != nil {
+			exitWithErr(err)
+		}
 	}
 	if errLoader != nil {
 		exitWithErr(errLoader)
@@ -213,20 +219,29 @@ func ReadFileContent(inputPath string) []byte {
 	return data
 }
 
-func ApplyTransformations(inputPath string, result *model.Document, apply, overwrite bool) {
-	if result.Format == model.SubtitleFormatSRT && overwrite && !apply {
-		return
+func resolveOutputPath(inputPath, explicit string, overwrite bool) string {
+	if explicit != "" {
+		return explicit
 	}
-	outPath := deriveOutputPath(inputPath, overwrite)
+	return deriveOutputPath(inputPath, overwrite)
+}
+
+func ApplyTransformations(inputPath string, result *model.Document, apply, overwrite bool, explicitOutput string) error {
+	if result.Format == model.SubtitleFormatSRT && overwrite && !apply && explicitOutput == "" {
+		return nil
+	}
+	outPath := resolveOutputPath(inputPath, explicitOutput, overwrite)
 
 	outData := subtitle.FormatSRT(*result) // Always save as .srt
 	if err := os.WriteFile(outPath, outData, 0644); err != nil {
-		exitWithErr(fmt.Errorf("write output: %w", err))
+		return fmt.Errorf("write output: %w", err)
 	}
 
-	if result.Format == model.SubtitleFormatASS && overwrite {
+	// Only remove ASS source when overwriting in place (no explicit output).
+	if result.Format == model.SubtitleFormatASS && overwrite && explicitOutput == "" {
 		_ = os.Remove(inputPath)
 	}
+	return nil
 }
 
 func RenderTransformations(rulesDisplay string, inputPath string, transformations *sanitize.Result) (model.Document, tea.Model) {
