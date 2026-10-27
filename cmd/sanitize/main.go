@@ -73,7 +73,7 @@ func main() {
 	if err != nil {
 		exitWithErr(fmt.Errorf("marshal config backup: %w", err))
 	}
-	if !conf.LoadedFromFile {
+	if !conf.LoadedFromFile && !args.Auto {
 		_ = conf.SaveToBackupFile(backupJSON)
 	}
 	if args.MkvExtract {
