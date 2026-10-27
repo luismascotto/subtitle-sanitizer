@@ -611,6 +611,13 @@ func Test_removeTextBeforeColon_emptyString(t *testing.T) {
 	}
 }
 
+func Test_removeTextBeforeColon_keepDialogueDash(t *testing.T) {
+	_, got := removeTextBeforeColon("- Ralph: Hello")
+	if got != "- Hello" {
+		t.Fatalf("got=%q", got)
+	}
+}
+
 func Test_removeUppercaseTextWithColon_emptyString(t *testing.T) {
 	removed, got := removeUppercaseTextWithColon("")
 	if removed || got != "" {

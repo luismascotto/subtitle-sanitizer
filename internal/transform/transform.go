@@ -18,8 +18,9 @@ const (
 var (
 	// reBr                  = regexp.MustCompile(`<br />`)
 	reSpaces = regexp.MustCompile(`\s{2,}`)
-	//reUppercaseColonWords    = regexp.MustCompile(`\b[A-Z]{1,}\s*[A-Z0-9]{1,}:[ \t]*`)
-	reTextWithColon          = regexp.MustCompile(`^[^:]+:[ \t]*`)
+	// reUppercaseColonWords    = regexp.MustCompile(`\b[A-Z]{1,}\s*[A-Z0-9]{1,}:[ \t]*`)
+	// reTextWithColon          = regexp.MustCompile(`^[^:]+:[ \t]*`)
+	reTextWithColon          = regexp.MustCompile(`[^:\-]+:`)
 	reUppercaseTextWithColon = regexp.MustCompile(`^[^:a-z]*[A-Z][^:a-z]*:[ \t]*`)
 	// ASS override tags → SRT (compiled once; convertASSFormattingToSRT used per cue).
 	reASSOpenTag   = regexp.MustCompile(`{\\([bius])[1-9]\d*}`)
