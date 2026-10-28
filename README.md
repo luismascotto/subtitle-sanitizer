@@ -1,6 +1,6 @@
 # Subtitle Sanitizer (Go)
 
-A small CLI tool to sanitize subtitles by removing configurable levels of Hearing Impaired Text (HIT) and other noises. Supports SRT and ASS (produces a SRT result) formats. Can also be used for raw subtitle extraction from MKV files with the ffmpeg tool ("sold separatedly")
+A small CLI tool to sanitize subtitles by removing configurable levels of Hearing Impaired Text (HIT) and other noises. Supports SRT and ASS (produces a SRT result) formats. Can also be used for raw subtitle extraction from MKV files with the ffmpeg tool ("sold separately")
 
 
 ## Install
