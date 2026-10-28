@@ -72,3 +72,4 @@ nunit-*.xml
 /config.json
 /node_modules
 /config.backup.json
+.superpowers

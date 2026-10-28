@@ -19,14 +19,25 @@ var (
 	// reBr                  = regexp.MustCompile(`<br />`)
 	reSpaces = regexp.MustCompile(`\s{2,}`)
 	// reUppercaseColonWords    = regexp.MustCompile(`\b[A-Z]{1,}\s*[A-Z0-9]{1,}:[ \t]*`)
-	// reTextWithColon          = regexp.MustCompile(`^[^:]+:[ \t]*`)
-	reTextWithColon          = regexp.MustCompile(`[^:\-]+:`)
-	reUppercaseTextWithColon = regexp.MustCompile(`^[^:a-z]*[A-Z][^:a-z]*:[ \t]*`)
+	// ^: line start only. Optional leading "-" kept as "- ". \p{L}: skip times like "8:00 pm".
+	reTextWithColon          = regexp.MustCompile(`^(-)?[ \t]*[^:]*\p{L}[^:]*:[ \t]*`)
+	reUppercaseTextWithColon = regexp.MustCompile(`^(-)?[ \t]*[^:a-z]*[A-Z][^:a-z]*:[ \t]*`)
 	// ASS override tags → SRT (compiled once; convertASSFormattingToSRT used per cue).
 	reASSOpenTag   = regexp.MustCompile(`{\\([bius])[1-9]\d*}`)
 	reASSCloseTag  = regexp.MustCompile(`{\\([bius])0}`)
 	reASSOtherTags = regexp.MustCompile(`{\\[^bius][^}]*}`)
 )
+
+// stripColonLabel removes a line-start speaker label matched by re.
+// A leading dialogue dash is normalized to "- ".
+func stripColonLabel(re *regexp.Regexp, line string) string {
+	return re.ReplaceAllStringFunc(line, func(m string) string {
+		if strings.HasPrefix(m, "-") {
+			return "- "
+		}
+		return ""
+	})
+}
 
 // CueChange records one cue that had at least one rule applied (including full-line removal).
 type CueChange struct {
@@ -380,7 +391,7 @@ func removeUppercaseColonWords(s string) (bool, string) {
 	if len(s) == 0 {
 		return false, s
 	}
-	next := reUppercaseTextWithColon.ReplaceAllString(s, "")
+	next := stripColonLabel(reUppercaseTextWithColon, s)
 	if next != s {
 		return true, next
 	}
@@ -497,7 +508,7 @@ func removeUppercaseTextWithColon(s string) (bool, string) {
 	out := make([]string, 0)
 	removed := false
 	for line := range linesSequence {
-		next := reUppercaseTextWithColon.ReplaceAllString(line, "")
+		next := stripColonLabel(reUppercaseTextWithColon, line)
 		if next != line {
 			removed = true
 			line = next
@@ -520,7 +531,7 @@ func removeTextBeforeColon(s string) (bool, string) {
 	out := make([]string, 0)
 	removed := false
 	for line := range linesSequence {
-		next := reTextWithColon.ReplaceAllString(line, "")
+		next := stripColonLabel(reTextWithColon, line)
 		if next != line {
 			removed = true
 			line = next

@@ -37,12 +37,12 @@ func Test_removeUppercaseColonWords(t *testing.T) {
 		{
 			name: "remove uppercase words (dash), but keep the rest (Upper with colon)",
 			s:    "-WORLD: HELLO",
-			want: "HELLO",
+			want: "- HELLO",
 		},
 		{
 			name: "remove uppercase words (dash space), but keep the rest (Upper with colon)",
 			s:    "- WORLD: HELLO",
-			want: "HELLO",
+			want: "- HELLO",
 		},
 		{
 			name: "remove uppercase words, empty line",
@@ -612,9 +612,25 @@ func Test_removeTextBeforeColon_emptyString(t *testing.T) {
 }
 
 func Test_removeTextBeforeColon_keepDialogueDash(t *testing.T) {
-	_, got := removeTextBeforeColon("- Ralph: Hello")
-	if got != "- Hello" {
-		t.Fatalf("got=%q", got)
+	tests := []struct {
+		name string
+		s    string
+		want string
+	}{
+		{name: "dash space speaker", s: "- Ralph: Hello", want: "- Hello"},
+		{name: "dash no space speaker", s: "-Dan: Hello", want: "- Hello"},
+		{name: "no dash speaker", s: "Dan: Hello", want: "Hello"},
+		{name: "line start time 8:00 pm", s: "8:00 pm", want: "8:00 pm"},
+		{name: "line start time 7:00 p.m.", s: "7:00 p.m.", want: "7:00 p.m."},
+		{name: "time on later line unchanged", s: "Hello\n8:00 pm", want: "Hello\n8:00 pm"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, got := removeTextBeforeColon(tt.s)
+			if got != tt.want {
+				t.Fatalf("got=%q want=%q", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -622,6 +638,13 @@ func Test_removeUppercaseTextWithColon_emptyString(t *testing.T) {
 	removed, got := removeUppercaseTextWithColon("")
 	if removed || got != "" {
 		t.Fatalf("removed=%v got=%q", removed, got)
+	}
+}
+
+func Test_removeUppercaseTextWithColon_keepDialogueDash(t *testing.T) {
+	_, got := removeUppercaseTextWithColon("- WORLD: Hello")
+	if got != "- Hello" {
+		t.Fatalf("got=%q", got)
 	}
 }
 
